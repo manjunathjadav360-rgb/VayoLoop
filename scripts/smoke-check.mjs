@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [html, app, streamlit] = await Promise.all([
+const [html, app, streamlit, architecture] = await Promise.all([
   readFile(new URL('../index.html', import.meta.url), 'utf8'),
   readFile(new URL('../app.js', import.meta.url), 'utf8'),
-  readFile(new URL('../app.py', import.meta.url), 'utf8')
+  readFile(new URL('../app.py', import.meta.url), 'utf8'),
+  readFile(new URL('../ARCHITECTURE.md', import.meta.url), 'utf8')
 ]);
 
 const ids = [...html.matchAll(/id="([^"]+)"/g)].map(match => match[1]);
@@ -101,3 +102,12 @@ console.log('VayoLoop demo, voice companion, interaction, safety and accessibili
 assert.match(streamlit, /Import a wearable \/ health-app export/, 'The Health Journal must expose the wearable CSV import');
 assert.match(streamlit, /parse_health_observations_csv/, 'The Streamlit UI must call the validated wearable CSV parser');
 assert.match(streamlit, /save_health_observations/, 'Wearable readings must be persisted with the validated batch-save function');
+
+assert.match(architecture, /## Architecture and trust boundaries/, 'Architecture must explain component and trust boundaries');
+assert.match(architecture, /### Component and responsibility map/, 'Architecture must show module responsibilities');
+assert.match(architecture, /### Wearable \/ health-app CSV import data flow/, 'Architecture must describe the wearable CSV pipeline');
+assert.match(architecture, /### Data ownership and persistence boundary/, 'Architecture must distinguish persistent and session data');
+assert.match(architecture, /### Security and failure boundaries/, 'Architecture must document validation and failure boundaries');
+assert.match(architecture, /Public-demo consequence/, 'Architecture must disclose shared public demo data visibility');
+assert.match(architecture, /not a Bluetooth\/vendor-cloud integration/, 'Architecture must distinguish CSV file import from live device integration');
+assert.match(architecture, /examples\/wearable_export_sample\.csv/, 'Architecture must identify the reproducible sample input');

@@ -31,3 +31,13 @@ VayoLoop is an elder-led care coordination workspace. It connects medication rou
 ## Important demo rule
 
 The public app shares its persisted demo workspace with every visitor. Do not upload real prescriptions, enter real health details or add real emergency contacts. This is a hackathon prototype, not a clinical record service or emergency-response service.
+
+## Architecture and boundaries — judge explanation
+
+Explain the split: `app.py` owns presentation and user confirmation; `vayoloop_core.py` owns pure status/trend logic; `vayoloop_db.py` validates and persists records; `care_passport.py` builds a read-only handoff; `vayoloop_security.py` encodes untrusted output.
+
+For the wearable import, demonstrate this sequence: select CSV → enforce 2 MB / 500-row limits → check required columns → validate numeric values and timezone-aware timestamps → compare duplicate fingerprints in UTC → preview rows → user confirms → validate the complete batch → one database bulk insert. Cancel before confirmation and no write is made.
+
+State the boundary clearly: this is a user-initiated file import, not a Bluetooth or vendor-cloud integration. The public demo has one shared fictional workspace; persisted health and prescription records are visible to all demo visitors. Device status, family alerts and emergency events are simulated. No diagnosis, medicine suitability check, emergency call or notification delivery is implemented.
+
+See [Architecture and trust boundaries](ARCHITECTURE.md#architecture-and-trust-boundaries) for the component map, data ownership, security boundaries and reproducible checks.
