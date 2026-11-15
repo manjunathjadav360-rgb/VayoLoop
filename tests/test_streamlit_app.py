@@ -8,6 +8,7 @@ APP_PATH = Path(__file__).resolve().parents[1] / "app.py"
 SECTIONS = [
     "Home",
     "Medicines",
+    "Prescription library",
     "Health journal",
     "Appointments",
     "Family circle",
