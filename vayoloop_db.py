@@ -54,13 +54,17 @@ def create_supabase_client(project_url: str = DEFAULT_SUPABASE_URL,
 
 
 def map_health_record(row: dict[str, Any]) -> dict[str, Any]:
+    """Validate persisted health data before it enters the application workspace."""
+    observation = normalise_health_observation(
+        row.get("metric"),
+        row.get("value"),
+        row.get("unit", ""),
+        row.get("observed_at"),
+        row.get("source") or "Not recorded",
+    )
     return {
         "id": str(row.get("id", "")),
-        "metric": str(row.get("metric", "Observation")),
-        "value": float(row.get("value", 0)),
-        "unit": str(row.get("unit", "")),
-        "observed_at": str(row.get("observed_at", "")),
-        "source": str(row.get("source", "Not recorded")),
+        **observation,
         "context": row.get("context") or {},
     }
 
