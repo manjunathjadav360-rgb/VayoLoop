@@ -1143,6 +1143,18 @@ elif section == "Emergency centre":
 elif section == "Connected living":
     st.subheader("Connected living")
     st.caption("Designed for compatible wearables, phone health platforms and supported home sensors. Not every brand or appliance exposes an integration.")
+    with st.container(border=True):
+        st.markdown("**Bring in existing wearable history**")
+        st.caption(
+            "Live smartwatch and home-sensor connections are not active in this prototype. "
+            "You can import a CSV export from a compatible health app into the Health Journal."
+        )
+        st.button(
+            "Open Health Journal wearable import",
+            on_click=navigate_to_section,
+            args=("Health journal",),
+            use_container_width=True,
+        )
     left, right = st.columns([1.2, 0.8], gap="large")
     with left:
         with st.container(border=True):

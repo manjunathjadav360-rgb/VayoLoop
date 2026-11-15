@@ -60,7 +60,7 @@ Only health observations and prescription records currently persist. Medicines, 
 - **Appointments:** create and complete appointment records.
 - **Family circle:** sample family roles, trusted emergency contacts, shared household tasks and contact priority.
 - **Emergency centre:** demonstrate possible-fall confirmation, manual SOS, simulated family escalation, contact acknowledgements and resolution history.
-- **Connected living:** sample wearable and home-sensor register, last-sync visibility and simulated device events.
+- **Connected living:** sample wearable and home-sensor register, last-sync visibility and simulated device events. A separate CSV import path in Health Journal accepts exported readings from compatible health apps; live device APIs are not connected.
 - **Local care directory:** add the family's own clinics, hospitals, pharmacies and home-care contacts. It starts empty rather than inventing local providers.
 - **Care Passport:** assemble medication records, self-reported dose history, health observations, appointments, wellbeing check-ins, family tasks, trusted contacts and device status into a print-friendly handoff; export HTML or a structured JSON backup after an explicit sharing acknowledgement.
 - **Care handoff review:** run a pre-export administrative completeness check across medicines, prescription file references, health observations, appointments, trusted contacts and family tasks. It flags missing fields, broken document links, stale appointments, overdue tasks and inconsistent observation records without judging clinical accuracy or medicine suitability.
