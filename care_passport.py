@@ -71,7 +71,7 @@ def build_care_passport(
             "notes": item.get("notes", ""),
             "file_size_bytes": item.get("file_size_bytes", 0),
             "uploaded_at_display": _display_time(item.get("uploaded_at")),
-            "storage_note": "Original file available only in the active demo session",
+            "storage_note": item.get("storage_note", "Original file available only in the active demo session"),
         })
 
     appointments = []
