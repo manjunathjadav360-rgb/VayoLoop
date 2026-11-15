@@ -26,8 +26,8 @@ No secrets are required for the synthetic-data demo. Do not add real patient inf
 
 The VayoLoop Supabase project provides authenticated persistence for **health observations** and **prescription documents**:
 
-- Health readings are stored in \`public.health_observations\`.
-- Prescription details are stored in \`public.prescription_records\`; original PDFs/images are stored in the private \`vayoloop-prescriptions\` Storage bucket.
+- Health readings are stored in `public.health_observations`.
+- Prescription details are stored in `public.prescription_records`; original PDFs/images are stored in the private `vayoloop-prescriptions` Storage bucket.
 - The first successful sign-in creates a care profile and owner membership.
 - Existing row-level security and Storage policies restrict access by care-circle membership and role. Family members can read records; only owners, elders and caregivers can add or manage prescriptions.
 - The app uses a **publishable key only**. Never put a Supabase service-role key in Streamlit secrets or this repository.
@@ -36,10 +36,10 @@ The VayoLoop Supabase project provides authenticated persistence for **health ob
 
 In the Streamlit app dashboard, open **App settings → Secrets** and add:
 
-\`\`\`toml
+```toml
 SUPABASE_URL = "https://vhugnytmbjktbhlspgyx.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_... paste the VayoLoop project's publishable key ..."
-\`\`\`
+```
 
 Save the secrets and reboot the app. Use the project's **publishable** key from Supabase Project Settings / API Keys. Do not use a service-role or secret key. Users can then create an account or sign in from the app's sidebar. Hosted Supabase email confirmation may be required before first sign-in.
 
@@ -52,8 +52,8 @@ Only health observations and prescription records currently persist. Medicines, 
 - **Elder-first home:** short greeting, daily overview, larger-text option and simple navigation.
 - **Voice companion:** optional one-time browser audio enablement; attempts a spoken welcome and checks scheduled sample medicine and appointment reminders while the page remains open. Reminder phrases include English, Hindi, Kannada, Gujarati, Marathi, Tamil, Telugu and Bengali.
 - **Medication journey:** sample medicine records, scheduled times, self-reported dose events, overdue-unconfirmed state, refill planning and a traceable activity log.
-- **Prescription library:** upload PDF or image copies with date, clinic, prescriber and notes; re-download or remove the original during the current session. This prototype does not run OCR or medicine-disease checks.
-- **Health record book:** timestamped readings with source labels, personal comparisons and complete CSV / JSON downloads of the current session's health observations.
+- **Prescription library:** store PDF or image copies, metadata and the original file in private Supabase Storage when signed in; download or delete with care-circle permissions. Without sign-in it remains session-only. This prototype does not run OCR or medicine-disease checks.
+- **Health record book:** timestamped readings with source labels, personal comparisons and CSV / JSON export. Signed-in observations persist in Supabase; demo observations remain session-only.
 - **Daily wellbeing check-in:** simple family check-in for meals, water, mood and optional notes; not a clinical assessment.
 - **Health journal:** longitudinal user-entered or sample observations with personal comparisons; no diagnosis or universal health score.
 - **Appointments:** create and complete appointment records.
@@ -69,14 +69,14 @@ Only health observations and prescription records currently persist. Medicines, 
 
 This is a **synthetic-data hackathon prototype**, not a medical device, care provider or emergency service.
 
-- No real patient data, login, live messaging, SMS, WhatsApp, email or push notifications are connected.
+- Supabase email/password authentication is available after Streamlit secrets are configured. Only health observations and prescription records are persistently stored; live family messaging, SMS, WhatsApp and push notifications are not connected. All judging/test entries must be fictional.
 - Family/contact alerts, falls, home-sensor events and device syncs are simulations. The UI labels them as simulated; no person is actually notified.
 - A possible fall requires verification. A manual SOS follows the immediate *simulated* family-alert path. The app does not automatically call 112 or dispatch responders.
 - Browser speech and reminder tones depend on device/browser support, audio permission and the page staying open. They are not reliable background or life-safety alerts when the browser is closed or the phone is asleep.
 - Voice phrases depend on speech voices installed on the device; language coverage varies.
-- Streamlit session state is temporary demo storage. It is not a durable patient record or secure multi-user database.
+- Streamlit session state remains temporary for medicines, appointments, family tasks, connected devices, wellbeing check-ins and emergency simulations. Supabase uses authentication, row-level security and a private prescription bucket for the two persistent record types, but this hackathon prototype is not a production clinical-record service.
 - Care Passport downloads are generated from the current demo session only; they are not saved to a server or sent to a clinician or family member. The export should only be shared with the elder's permission.
-- Prescription files, medicine records and health observations live in Streamlit session memory in this prototype. They can be downloaded during the session, but may be lost when the session ends or the app restarts. Do not use this demo to store real private medical records.
+- Signed-in prescription files and health observations persist in Supabase. Unsigned demo documents remain in session memory. Medicines and other care workflows remain session-only. Do not upload real patient records to this public hackathon prototype.
 - A dose report is self-reported and is not proof of ingestion. The app never changes a prescription, recommends a dose or decides treatment.
 - Health trends describe entered sample values only. They do not diagnose or infer causes.
 - Device compatibility depends on individual provider APIs and permissions; VayoLoop does not connect to every smartwatch or appliance.
