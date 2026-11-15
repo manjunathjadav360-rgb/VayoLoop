@@ -60,14 +60,17 @@
       {id:'mem-b',name:'Meera Rao',role:'Family',initials:'MR',scope:'Read-only example access'},
       {id:'mem-c',name:'Arjun Patel',role:'Caregiver',initials:'AP',scope:'Example care coordination access'}
     ];
-    const doseReports = [
-      {id:makeId('dose'),medicationId:'med-a',at:iso(dateOffset(-5,8,5))},
-      {id:makeId('dose'),medicationId:'med-b',at:iso(dateOffset(-5,13,5))},
-      {id:makeId('dose'),medicationId:'med-c',at:iso(dateOffset(-4,20,5))},
-      {id:makeId('dose'),medicationId:'med-a',at:iso(dateOffset(-3,8,5))},
-      {id:makeId('dose'),medicationId:'med-b',at:iso(dateOffset(-2,13,5))},
-      {id:makeId('dose'),medicationId:'med-a',at:iso(dateOffset(-1,8,5))}
-    ];
+    const doseReports = [];
+    for (let day=-6; day<=-1; day++) {
+      for (const med of meds.filter(item => item.active)) {
+        const [hour,minute] = med.time.split(':').map(Number);
+        doseReports.push({
+          id:makeId('dose'),
+          medicationId:med.id,
+          at:iso(dateOffset(day,hour,minute+5))
+        });
+      }
+    }
     const events = [
       {id:makeId('ev'),title:'Morning routine reported',detail:'Medicine A · user-reported in demo',at:iso(dateOffset(0,8,5)),kind:'medication'},
       {id:makeId('ev'),title:'Demo watch sample synced',detail:'Steps and sleep sample readings',at:iso(dateOffset(0,8,30)),kind:'device'},
@@ -240,7 +243,7 @@
     const weekStart = startOfDay(now());
     weekStart.setDate(weekStart.getDate() - 6);
     const reports = state.doseReports.filter(report => new Date(report.at) >= weekStart);
-    const scheduled = 7;
+    const scheduled = Math.max(1,state.meds.filter(m => m.active).length*7);
     const rate = Math.min(100, Math.round((reports.length / scheduled) * 100));
     $('doseRate').textContent = rate + '%';
     $('medCount').textContent = state.meds.filter(m => m.active).length;
