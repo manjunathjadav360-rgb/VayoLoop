@@ -142,8 +142,6 @@ def inject_styles() -> None:
         .vl-danger { border-left-color:#ad5548; background:#f8efea; color:#75443e; }
         .vl-small { color:#5f6d64; font-size:.7rem; }
         .stButton > button, .stLinkButton > a { border-radius:8px; font-weight:700; min-height:2.55rem; }
-        .stButton > button[kind="primary"] { background:var(--vl-green); border-color:var(--vl-green); }
-        .stButton > button[kind="primary"]:hover { background:var(--vl-green2); border-color:var(--vl-green2); }
         .stTextInput input, .stNumberInput input, .stDateInput input, .stTimeInput input, .stSelectbox div[data-baseweb="select"] { border-radius:8px; }
         div[data-testid="stExpander"] { border-color:var(--vl-line); border-radius:10px; background:var(--vl-card); }
         hr { border-color:var(--vl-line); }
