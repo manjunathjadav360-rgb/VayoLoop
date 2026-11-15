@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import base64
+import csv
 import html
+import io
 import json
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
@@ -226,6 +229,18 @@ def fmt_datetime(value: str) -> str:
         return "Time not set"
 
 
+def health_records_csv(records: list[dict]) -> str:
+    buffer = io.StringIO(newline="")
+    writer = csv.writer(buffer)
+    writer.writerow(["record_id", "observation", "value", "unit", "observed_at", "source"])
+    for item in sorted(records, key=lambda value: value.get("observed_at", "")):
+        writer.writerow([
+            item.get("id", ""), item.get("metric", ""), item.get("value", ""),
+            item.get("unit", ""), item.get("observed_at", ""), item.get("source", ""),
+        ])
+    return buffer.getvalue()
+
+
 def add_event(title: str, detail: str) -> None:
     st.session_state.workspace["events"].insert(
         0, {"id": f"evt-{datetime.now().timestamp()}", "title": title, "detail": detail, "at": india_now().isoformat()}
@@ -280,7 +295,7 @@ with st.sidebar:
     st.markdown("---")
     section = st.radio(
         "Workspace",
-        ["Home", "Medicines", "Health journal", "Appointments", "Family circle", "Emergency centre", "Connected living", "Local support", "Care Passport"],
+        ["Home", "Medicines", "Prescription library", "Health journal", "Appointments", "Family circle", "Emergency centre", "Connected living", "Local support", "Care Passport"],
         label_visibility="collapsed",
         key="workspace_section",
     )
@@ -440,6 +455,90 @@ elif section == "Medicines":
                         st.rerun()
         st.markdown("<div class='vl-note'>VayoLoop must never suggest a dose, change a prescription, or tell someone to stop a medicine. The product records the clinician-provided plan and flags possible conflicts for a qualified professional.</div>", unsafe_allow_html=True)
 
+elif section == "Prescription library":
+    st.subheader("Prescription library")
+    st.caption("Keep a copy of the original prescription with its source and date. This demo stores uploads only in the active app session; use fictional documents in this public prototype.")
+    st.markdown(
+        "<div class='vl-note'>Upload and organise the original document here. This version does not perform OCR, verify authenticity, check medicine-disease suitability or replace a pharmacist/doctor review. Do not upload real private medical records to this public demo.</div>",
+        unsafe_allow_html=True,
+    )
+    with st.container(border=True):
+        st.markdown("**Add a prescription document**")
+        with st.form("prescription_upload_form"):
+            prescription_file = st.file_uploader(
+                "Choose prescription file",
+                type=["pdf", "png", "jpg", "jpeg", "webp"],
+                help="PDF or image, maximum 10 MB. The original file is kept for download during this session.",
+            )
+            document_label = st.text_input("Document label", placeholder="Prescription · November visit")
+            prescribed_on = st.date_input("Prescription date", value=today)
+            clinic = st.text_input("Clinic / hospital", placeholder="As printed on the document")
+            clinician = st.text_input("Doctor / prescriber (optional)")
+            condition_as_written = st.text_input("Condition / reason (only if written on the document)")
+            prescription_notes = st.text_area("Notes for the care circle", placeholder="For example: bring the original to the next appointment")
+            save_prescription = st.form_submit_button("Save prescription document", type="primary", use_container_width=True)
+        if save_prescription:
+            if prescription_file is None:
+                st.error("Choose a PDF or image first.")
+            else:
+                file_bytes = prescription_file.getvalue()
+                if len(file_bytes) > 10 * 1024 * 1024:
+                    st.error("This file is larger than 10 MB. Choose a smaller copy.")
+                else:
+                    safe_name = prescription_file.name.replace("/", "_").replace("\\\\", "_").replace("\\x00", "")
+                    workspace.setdefault("prescriptions", []).insert(0, {
+                        "id": f"rx-{int(datetime.now().timestamp() * 1000)}",
+                        "document_label": document_label.strip() or safe_name,
+                        "file_name": safe_name,
+                        "file_type": prescription_file.type or "application/octet-stream",
+                        "file_size_bytes": len(file_bytes),
+                        "file_data_b64": base64.b64encode(file_bytes).decode("ascii"),
+                        "prescribed_on": prescribed_on.isoformat(),
+                        "clinic": clinic.strip(),
+                        "clinician": clinician.strip(),
+                        "condition_as_written": condition_as_written.strip(),
+                        "notes": prescription_notes.strip(),
+                        "uploaded_at": india_now().isoformat(),
+                    })
+                    add_event("Prescription document saved", safe_name)
+                    st.success("Prescription file added to this session. You can download the original below.")
+                    st.rerun()
+
+    saved_prescriptions = workspace.setdefault("prescriptions", [])
+    st.markdown(f"### Saved documents · {len(saved_prescriptions)}")
+    if not saved_prescriptions:
+        st.info("No prescription documents saved yet. Add a PDF or image above.")
+    for prescription in saved_prescriptions:
+        with st.container(border=True):
+            st.markdown(f"**{html.escape(prescription['document_label'])}**")
+            detail_parts = [
+                f"Date: {prescription.get('prescribed_on', 'Not recorded')}",
+                f"File: {prescription.get('file_name', 'Document')}",
+                f"Size: {prescription.get('file_size_bytes', 0) / 1024:.0f} KB",
+            ]
+            if prescription.get("clinic"):
+                detail_parts.append(f"Clinic: {prescription['clinic']}")
+            if prescription.get("clinician"):
+                detail_parts.append(f"Prescriber: {prescription['clinician']}")
+            st.caption(" · ".join(detail_parts))
+            if prescription.get("condition_as_written"):
+                st.write(f"Recorded reason: {prescription['condition_as_written']}")
+            if prescription.get("notes"):
+                st.write(prescription["notes"])
+            d1, d2 = st.columns([1, 1])
+            d1.download_button(
+                "Download original file",
+                data=base64.b64decode(prescription["file_data_b64"]),
+                file_name=prescription["file_name"],
+                mime=prescription["file_type"],
+                key=f"rx_download_{prescription['id']}",
+                use_container_width=True,
+            )
+            if d2.button("Remove from this session", key=f"rx_remove_{prescription['id']}", use_container_width=True):
+                workspace["prescriptions"] = [item for item in saved_prescriptions if item["id"] != prescription["id"]]
+                add_event("Prescription document removed", prescription["file_name"])
+                st.rerun()
+
 elif section == "Health journal":
     st.subheader("Health progress journal")
     st.caption("Changes are compared with this profile's previous recorded values. Trends are not diagnoses, risk scores or treatment advice.")
@@ -450,9 +549,36 @@ elif section == "Health journal":
             if not workspace["health"]:
                 st.info("No readings have been recorded.")
             else:
-                for reading in sorted(workspace["health"], key=lambda x: x["observed_at"], reverse=True)[:16]:
-                    st.markdown(f"**{reading['metric']} · {reading['value']} {reading['unit']}**  \n<span class='vl-small'>{fmt_datetime(reading['observed_at'])} · Source: {reading['source']}</span>", unsafe_allow_html=True)
-                    st.divider()
+                st.dataframe(
+                    [
+                        {
+                            "Observation": item["metric"],
+                            "Value": f"{item['value']} {item['unit']}",
+                            "Recorded at": fmt_datetime(item["observed_at"]),
+                            "Source": item["source"],
+                        }
+                        for item in sorted(workspace["health"], key=lambda x: x["observed_at"], reverse=True)
+                    ],
+                    hide_index=True,
+                    use_container_width=True,
+                    height=320,
+                )
+                st.caption(f"{len(workspace['health'])} observations saved in this session.")
+                export_col1, export_col2 = st.columns(2)
+                export_col1.download_button(
+                    "Download health history CSV",
+                    data=health_records_csv(workspace["health"]),
+                    file_name=f"vayoloop-health-history-{today.isoformat()}.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+                export_col2.download_button(
+                    "Download health history JSON",
+                    data=json.dumps(sorted(workspace["health"], key=lambda item: item["observed_at"]), ensure_ascii=False, indent=2),
+                    file_name=f"vayoloop-health-history-{today.isoformat()}.json",
+                    mime="application/json",
+                    use_container_width=True,
+                )
         with st.container(border=True):
             st.markdown("**Personal trend snapshots**")
             metrics = sorted(set(x["metric"] for x in workspace["health"]))
@@ -473,8 +599,11 @@ elif section == "Health journal":
                 unit_default = {"Daily steps":"steps","Sleep duration":"hours","Resting heart rate":"bpm","Blood pressure — systolic":"mmHg","Blood pressure — diastolic":"mmHg","Blood glucose":"mg/dL","Weight":"kg"}.get(metric, "")
                 unit = st.text_input("Unit", value=unit_default)
                 source = st.selectbox("Source", ["Entered by family", "Entered by elder", "Compatible device (demo)", "Clinic report (demo)"])
+                reading_date = st.date_input("Reading date", value=today, key="health_reading_date")
+                reading_time = st.time_input("Reading time", value=india_now().time().replace(second=0, microsecond=0), step=timedelta(minutes=5), key="health_reading_time")
                 if st.form_submit_button("Save observation", type="primary", use_container_width=True):
-                    workspace["health"].append({"id": f"health-{int(datetime.now().timestamp())}", "metric": metric, "value": value, "unit": unit, "observed_at": india_now().isoformat(), "source": source})
+                    observed_at = datetime.combine(reading_date, reading_time, tzinfo=INDIA_TZ).isoformat(timespec="seconds")
+                    workspace["health"].append({"id": f"health-{int(datetime.now().timestamp() * 1000)}", "metric": metric, "value": value, "unit": unit, "observed_at": observed_at, "source": source})
                     add_event("Health observation added", f"{metric} · user-entered demo observation")
                     st.success("Observation saved.")
                     st.rerun()
