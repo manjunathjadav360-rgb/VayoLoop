@@ -64,7 +64,7 @@ VayoLoop supports a **user-initiated CSV file import** in **Health Journal**. It
 - In offline/test mode, validated readings are held in the current Streamlit session; with cloud persistence active, the batch is written to the shared demo table.
 - CSV data is user-supplied. The import does not authenticate a device, verify a manufacturer's signature or prove that a reading came from a physical wearable.
 
-**Try it:** use the [fictional sample wearable CSV](examples/wearable_export_sample.csv). The [judge walkthrough](JUDGE_WALKTHROUGH.md#demo-path) includes the live demonstration sequence.
+**Try it:** use the [fictional sample wearable CSV](examples/vayoloop_wearable_demo.csv). The [judge walkthrough](JUDGE_WALKTHROUGH.md#demo-path) includes the live demonstration sequence.
 
 ### CSV import test coverage
 
@@ -113,7 +113,7 @@ Only health observations and prescription records currently persist. Medicines, 
 - **Voice companion:** optional one-time browser audio enablement; attempts a spoken welcome and checks scheduled sample medicine and appointment reminders while the page remains open. Reminder phrases include English, Hindi, Kannada, Gujarati, Marathi, Tamil, Telugu and Bengali.
 - **Medication journey:** sample medicine records, scheduled times, self-reported dose events, overdue-unconfirmed state, refill planning, and optional links from medicine entries to the source prescription document. The link is for record traceability only, not clinical suitability checking.
 - **Prescription library:** store PDF or image copies, metadata and the original file in the shared demo workspace; download or delete demo files. This prototype does not run OCR or medicine-disease checks.
-- **Health record book:** timestamped readings with source labels, personal comparisons and CSV / JSON export. Readings persist in the shared demo workspace. The Health Journal also supports a user-confirmed import of up to 500 validated, timezone-aware readings from a wearable / health-app CSV export, with preview, duplicate detection and a single batch database request. This is file import, not live device integration. See [Wearable / health-app CSV import](#wearable--health-app-csv-import) and [the sample CSV](examples/wearable_export_sample.csv).
+- **Health record book:** timestamped readings with source labels, personal comparisons and CSV / JSON export. Readings persist in the shared demo workspace. The Health Journal also supports a user-confirmed import of up to 500 validated, timezone-aware readings from a wearable / health-app CSV export, with preview, duplicate detection and a single batch database request. This is file import, not live device integration. See [Wearable / health-app CSV import](#wearable--health-app-csv-import) and [the sample CSV](examples/vayoloop_wearable_demo.csv).
 - **Daily wellbeing check-in:** simple family check-in for meals, water, mood and optional notes; not a clinical assessment.
 - **Health journal:** timestamped observations, chronological charts, per-metric/unit trend summaries, latest-vs-previous comparisons, and rolling averages (latest three entries vs the preceding three when enough history exists). Trend direction describes recorded numbers only; it is not a diagnosis or a judgement that a value is medically good or bad.
 - **Appointments:** create and complete appointment records.
