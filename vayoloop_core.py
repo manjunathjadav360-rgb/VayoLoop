@@ -24,12 +24,11 @@ def parse_aware_india_datetime(value: str | None) -> datetime | None:
 
     try:
         parsed = datetime.fromisoformat(timestamp_text)
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed.astimezone(INDIA_TZ)
     except (TypeError, ValueError, OverflowError):
         return None
-
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        return None
-    return parsed.astimezone(INDIA_TZ)
 
 
 def iso_now(value: datetime | None = None) -> str:
