@@ -1,45 +1,158 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#f5f7f4"><title>VayoLoop — Care beyond reminders</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f4f7f4">
+<title>VayoLoop — Care beyond reminders</title>
+<meta name="description" content="VayoLoop is an elder-led care coordination demo for medication routines, health patterns, appointments and trusted care circles.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#172c29;--muted:#71817b;--line:#e4eae5;--paper:#f5f7f4;--white:#fff;--green:#1e6b55;--mint:#e7f2ec;--amber:#a66a20;--red:#a84c45;--shadow:0 12px 34px #183c2d0b}
-*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px 'DM Sans',sans-serif}button,input,select{font:inherit}button{cursor:pointer;border:0}.shell{max-width:1180px;margin:auto;padding:26px 22px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px}.brand{display:flex;gap:11px;align-items:center;font:800 22px Manrope}.mark{width:38px;height:38px;border-radius:13px;background:var(--green);color:white;display:grid;place-items:center;font-size:20px}.tag{color:var(--muted);font-size:12px}.btn{background:var(--green);color:white;padding:11px 16px;border-radius:11px;font-weight:700}.btn.light{background:var(--mint);color:var(--green)}.btn.ghost{background:white;color:var(--ink);border:1px solid var(--line)}.btn:disabled{opacity:.5;cursor:not-allowed}.hero{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:24px}.eyebrow{color:var(--green);font-weight:700;font-size:12px;letter-spacing:.09em;text-transform:uppercase}h1,h2,h3,p{margin-top:0}h1{font:800 clamp(26px,4vw,38px) Manrope;margin:8px 0}.sub{color:var(--muted);margin:0}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}.card{background:white;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}.wide{grid-column:span 8}.side{grid-column:span 4}.half{grid-column:span 6}.third{grid-column:span 4}.cardhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.card h2{font:700 16px Manrope;margin:0}.muted{color:var(--muted)}.stat{font:800 28px Manrope;margin:10px 0 3px}.pill{display:inline-flex;border-radius:20px;padding:5px 9px;background:var(--mint);color:var(--green);font-size:11px;font-weight:700}.list{display:grid;gap:10px}.item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.item:first-child{border-top:0}.item strong{display:block;font-weight:700}.item small{color:var(--muted)}.empty{padding:22px 12px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px;font-size:13px}.formrow{display:flex;gap:8px;flex-wrap:wrap}.field{min-width:0;flex:1;border:1px solid var(--line);background:#fbfcfb;padding:11px 12px;border-radius:10px;color:var(--ink)}.field:focus{outline:2px solid #b9d7c8;border-color:var(--green)}.full{width:100%}.section{margin-top:17px}.notice{background:#f8f4e9;color:#795b2e;border-radius:12px;padding:12px;font-size:12px;line-height:1.5}.auth{max-width:420px;margin:8vh auto;padding:28px}.auth h1{font-size:27px}.auth .field{width:100%;margin:6px 0}.hidden{display:none!important}.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:white;padding:12px 17px;border-radius:12px;z-index:9;max-width:90%;font-size:13px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 17px}.tabs button{background:white;border:1px solid var(--line);padding:8px 12px;border-radius:10px;color:var(--muted)}.tabs button.active{background:var(--mint);color:var(--green);border-color:#c9dfd2}.foot{color:var(--muted);font-size:11px;text-align:center;margin:25px 0 8px}
-@media(max-width:760px){.wide,.side,.half,.third{grid-column:span 12}.shell{padding:18px 14px}.hero{align-items:start;flex-direction:column}.top{margin-bottom:22px}.card{padding:17px}}
-</style></head>
+:root{--ink:#172d29;--muted:#718078;--line:#e3eae4;--paper:#f4f7f4;--white:#fff;--green:#1e6b55;--green2:#2f8068;--mint:#e8f3ed;--pale:#f8fbf8;--amber:#8c6528;--amber-bg:#fbf4e7;--red:#a74d45;--blue:#496d83;--shadow:0 12px 32px rgba(23,55,40,.055)}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px 'DM Sans',sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #afd0bf;outline-offset:2px}
+.shell{max-width:1240px;margin:auto;padding:18px 22px 28px}.demo-strip{display:flex;align-items:center;gap:10px;background:#fbf4e7;border:1px solid #eee1c5;border-radius:11px;padding:9px 12px;color:#785e30;font-size:11px;margin-bottom:19px}.demo-dot{width:7px;height:7px;border-radius:50%;background:#bd8c37;flex:none}
+.top{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:27px}.brand{display:flex;align-items:center;gap:10px;font:800 21px Manrope;letter-spacing:-.04em}.mark{width:39px;height:39px;border-radius:13px;background:var(--green);color:white;display:grid;place-items:center;font:800 19px Manrope}.brand-tag{font:700 9px 'DM Sans';letter-spacing:.16em;color:var(--muted);margin-top:2px}.top-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.user-chip{display:flex;align-items:center;gap:8px;background:white;border:1px solid var(--line);border-radius:30px;padding:5px 10px 5px 5px}.avatar{width:29px;height:29px;border-radius:50%;display:grid;place-items:center;background:var(--mint);color:var(--green);font:800 10px Manrope}.user-chip strong{font-size:11px}.user-chip small{display:block;color:var(--muted);font-size:9px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--green);color:#fff;padding:10px 13px;border-radius:9px;font-size:11px;font-weight:700;transition:background .15s,transform .15s}.btn:hover{background:var(--green2);transform:translateY(-1px)}.btn.light{background:var(--mint);color:var(--green)}.btn.ghost{background:white;color:var(--ink);border:1px solid var(--line)}.btn.warn{background:var(--amber-bg);color:var(--amber)}.btn.small{padding:7px 9px;font-size:10px}.btn:disabled{opacity:.5;cursor:not-allowed}
+.hero{display:flex;justify-content:space-between;align-items:end;gap:18px;margin-bottom:20px}.eyebrow{color:var(--green);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}h1,h2,h3,p{margin-top:0}h1{font:800 clamp(27px,4vw,36px) Manrope;letter-spacing:-.045em;margin:7px 0}.hero-copy{color:var(--muted);margin:0;font-size:12px}.hero-right{display:flex;align-items:end;flex-direction:column;gap:6px}.pill{display:inline-flex;align-items:center;gap:5px;border-radius:20px;background:var(--mint);color:var(--green);padding:5px 8px;font-size:9px;font-weight:800;white-space:nowrap}.pill.amber{background:var(--amber-bg);color:var(--amber)}.pill.blue{background:#eaf2f6;color:var(--blue)}.pill.neutral{background:#f0f3f0;color:#66756d}
+.statgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:15px}.statcard{background:white;border:1px solid var(--line);border-radius:14px;padding:14px 15px;box-shadow:var(--shadow)}.statlabel{font-size:10px;color:var(--muted);font-weight:650}.stat{font:800 24px Manrope;letter-spacing:-.04em;margin:7px 0 2px}.statnote{font-size:9px;color:var(--muted)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}.tabs button{background:white;border:1px solid var(--line);padding:8px 11px;border-radius:9px;color:var(--muted);font-size:10px;font-weight:750}.tabs button.active{background:var(--mint);color:var(--green);border-color:#c9dfd2}
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.card{min-width:0;background:white;border:1px solid var(--line);border-radius:16px;padding:17px;box-shadow:var(--shadow)}.wide{grid-column:span 8}.side{grid-column:span 4}.half{grid-column:span 6}.third{grid-column:span 4}.full{grid-column:1/-1}.cardhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:13px}.card h2{font:750 14px Manrope;letter-spacing:-.02em;margin:0}.card h3{font:750 12px Manrope;margin:0}.muted{color:var(--muted)}.list{display:grid;gap:8px}.item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #edf1ed}.item:first-child{border-top:0}.item strong{display:block;font-size:11px;font-weight:750}.item small{display:block;color:var(--muted);font-size:9px;margin-top:3px;line-height:1.45}.item-actions{display:flex;align-items:center;gap:6px;flex:none}.empty{padding:18px 10px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px;font-size:11px;line-height:1.5}
+.form{display:grid;gap:8px}.formrow{display:flex;gap:7px;flex-wrap:wrap}.field{min-width:0;width:100%;border:1px solid var(--line);background:#fbfcfb;padding:10px 11px;border-radius:9px;color:var(--ink);font-size:11px}.field::placeholder{color:#99a69d}.field:focus{outline:2px solid #bad7c8;border-color:var(--green)}.fieldrow{display:grid;grid-template-columns:1fr 1fr;gap:7px}.section{margin-top:13px}.notice{background:var(--amber-bg);color:#785c2d;border-radius:10px;padding:10px 11px;font-size:10px;line-height:1.55}.notice.green{background:var(--mint);color:var(--green)}.divider{height:1px;background:var(--line);margin:13px 0}.hidden{display:none!important}.view{display:none}.view.active{display:block}
+.trend{display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center;padding:10px 0;border-top:1px solid #edf1ed}.trend:first-child{border-top:0}.trend strong{font:750 16px Manrope}.trend small{display:block;color:var(--muted);font-size:9px;margin-top:3px}.trend-tag{font-size:9px;font-weight:800;padding:5px 8px;border-radius:18px;background:var(--mint);color:var(--green)}.trend-tag.review{background:var(--amber-bg);color:var(--amber)}.barrows{display:grid;gap:8px}.barrow{display:grid;grid-template-columns:57px 1fr 34px;gap:8px;align-items:center;font-size:9px;color:var(--muted)}.bartrack{height:7px;background:#edf2ee;border-radius:8px;overflow:hidden}.barfill{height:100%;border-radius:8px;background:var(--green2)}
+.timeline{display:grid;gap:0}.timeline-item{display:grid;grid-template-columns:12px 1fr;gap:9px;padding-bottom:12px}.timeline-dot{width:7px;height:7px;border-radius:50%;background:#78a891;margin-top:4px;box-shadow:0 0 0 4px var(--mint)}.timeline-item strong{font-size:10px}.timeline-item small{display:block;color:var(--muted);font-size:9px;margin-top:3px}.member{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid #edf1ed}.member:first-child{border-top:0}.member-avatar{width:30px;height:30px;border-radius:10px;background:var(--mint);color:var(--green);font:800 10px Manrope;display:grid;place-items:center;flex:none}.member-info{min-width:0;flex:1}.member-info strong{font-size:10px}.member-info small{display:block;color:var(--muted);font-size:9px;margin-top:2px}.codebox{font:700 11px ui-monospace,monospace;letter-spacing:.06em;word-break:break-all;background:#f5f8f5;border:1px solid var(--line);padding:10px;border-radius:8px;color:var(--green)}
+body.large-text{font-size:17px}body.large-text .item strong,body.large-text .card h2{font-size:16px}body.large-text .item small,body.large-text .muted{font-size:11px}.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:white;padding:10px 14px;border-radius:10px;z-index:9;max-width:90%;font-size:11px;box-shadow:0 10px 24px #10231b22}.foot{color:var(--muted);font-size:9px;text-align:center;margin:20px 0 3px;line-height:1.5}
+@media(max-width:820px){.statgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.wide,.side,.half,.third{grid-column:span 12}.hero{align-items:start;flex-direction:column}.hero-right{align-items:start}.top{align-items:flex-start}.shell{padding:14px 12px 23px}}
+@media(max-width:440px){.stat{font-size:21px}.card{padding:14px}.top{flex-direction:column}.top-actions{width:100%;justify-content:space-between}.tabs{gap:5px}.tabs button{padding:8px 9px}.fieldrow{grid-template-columns:1fr}}
+</style>
+</head>
 <body>
-<section id="auth" class="auth card">
-<div class="brand"><span class="mark">V</span> VayoLoop</div><p class="tag" style="margin:7px 0 24px">Care beyond reminders.</p>
-<h1>Your care circle, connected.</h1><p class="sub">Sign in or create an account to manage a care profile.</p>
-<input id="email" class="field" type="email" placeholder="Email address" autocomplete="email">
-<input id="password" class="field" type="password" placeholder="Password (minimum 8 characters)" autocomplete="current-password">
-<div class="formrow section"><button id="signIn" class="btn" style="flex:1">Sign in</button><button id="signUp" class="btn light" style="flex:1">Create account</button></div>
-<p class="muted section" style="font-size:12px">Your account is private. Only invited care-circle members can access a profile.</p>
-</section>
-<main id="app" class="shell hidden">
-<header class="top"><div class="brand"><span class="mark">V</span><div>VayoLoop<div class="tag">CARE BEYOND REMINDERS</div></div></div><button id="signOut" class="btn ghost">Sign out</button></header>
-<div class="hero"><div><div class="eyebrow">Your care space</div><h1 id="greeting">Welcome</h1><p class="sub">A calmer way to stay connected to everyday care.</p></div><span class="pill" id="profileStatus">Private care profile</span></div>
-<div id="profileSetup" class="card section hidden"><div class="cardhead"><h2>Create an elder care profile</h2></div><form id="profileForm" class="formrow"><input id="elderName" class="field" placeholder="Elder's preferred name" required><select id="language" class="field"><option value="en">English</option><option value="hi">हिन्दी</option><option value="kn">ಕನ್ನಡ</option><option value="gu">ગુજરાતી</option></select><button class="btn">Create profile</button></form><p class="muted section" style="font-size:12px">The profile owner remains in control. Add family or caregiver access only with their permission.</p><div class="divider section"></div><h2 class="section">Have a care-circle invitation?</h2><form id="acceptInviteSetupForm" class="formrow section"><input id="inviteCodeSetup" class="field" placeholder="Paste your 64-character invite code" autocomplete="off" required><button class="btn">Accept invitation</button></form>
-<div id="dashboard" class="hidden">
-<nav class="tabs"><button class="active" data-tab="overview">Overview</button><button data-tab="medications">Medications</button><button data-tab="health">Health journal</button><button data-tab="appointments">Appointments</button><button data-tab="devices">Connected living</button><button data-tab="care">Care circle</button></nav>
-<div id="view-overview" class="grid">
-<div class="card wide"><div class="cardhead"><h2>Medication schedule</h2><button class="btn light" data-go="medications">Manage</button></div><div id="todayMeds" class="list"></div></div>
-<div class="card side"><div class="cardhead"><h2>Care at a glance</h2></div><div class="muted" style="font-size:12px">Active medications</div><div class="stat" id="medCount">—</div><div class="muted" style="font-size:12px">Upcoming appointments</div><div class="stat" id="apptCount">—</div><div class="notice">Health trends are summaries of recorded information, not diagnoses or treatment advice.</div></div>
-<div class="card half"><div class="cardhead"><h2>Recent health entries</h2><button class="btn light" data-go="health">Add entry</button></div><div id="recentHealth" class="list"></div></div>
-<div class="card half"><div class="cardhead"><h2>Next appointments</h2><button class="btn light" data-go="appointments">View all</button></div><div id="nextAppts" class="list"></div></div>
-</div>
-<div id="view-medications" class="grid hidden"><div class="card wide"><div class="cardhead"><h2>Medication list</h2><span class="pill">Record only</span></div><div id="medList" class="list"></div></div><div class="card side"><h2>Add medication</h2><form id="medForm" class="list section"><input id="medName" class="field" placeholder="Medicine name" required><input id="medStrength" class="field" placeholder="Strength (optional)"><input id="medInstructions" class="field" placeholder="Instructions from prescription"><input id="medTime" class="field" type="time" value="09:00"><button class="btn">Save medication</button></form><p class="muted section" style="font-size:12px">Enter details exactly as confirmed from the prescription. VayoLoop does not recommend or change medicines.</p></div></div>
-<div id="view-health" class="grid hidden"><div class="card wide"><div class="cardhead"><h2>Health journal</h2><span class="pill">Personal record</span></div><div id="healthList" class="list"></div></div><div class="card side"><h2>Record a measurement</h2><form id="healthForm" class="list section"><select id="metric" class="field"><option value="blood_pressure_systolic">Blood pressure — systolic</option><option value="blood_pressure_diastolic">Blood pressure — diastolic</option><option value="blood_glucose">Blood glucose</option><option value="heart_rate">Heart rate</option><option value="weight">Weight</option><option value="steps">Steps</option><option value="sleep_duration">Sleep duration</option></select><input id="healthValue" class="field" type="number" step="any" placeholder="Value" required><input id="healthUnit" class="field" placeholder="Unit (e.g. mmHg, bpm, kg)" required><select id="healthSource" class="field"><option value="manual">Entered manually</option><option value="demo">Demo data</option></select><button class="btn">Save entry</button></form><p class="muted section" style="font-size:12px">Trends will be calculated from dated records. No diagnosis or medication decisions are made by this app.</p></div></div>
-<div id="view-appointments" class="grid hidden"><div class="card wide"><div class="cardhead"><h2>Appointments</h2></div><div id="apptList" class="list"></div></div><div class="card side"><h2>Add appointment</h2><form id="apptForm" class="list section"><input id="apptTitle" class="field" placeholder="Appointment / reason" required><input id="clinician" class="field" placeholder="Doctor or clinician (optional)"><input id="apptDate" class="field" type="datetime-local" required><button class="btn">Save appointment</button></form></div></div>
-<div id="view-devices" class="grid hidden"><div class="card wide"><div class="cardhead"><h2>Connected living</h2><span class="pill">Integration-ready</span></div><div id="deviceList" class="list"></div><div class="notice section">Device connections are not active yet. This section records consent and planned integrations; it does not claim to read a watch or control home appliances. Only compatible devices and authorized APIs can be connected.</div></div><div class="card side"><h2>Register a device</h2><form id="deviceForm" class="list section"><input id="deviceName" class="field" placeholder="Device name" required><select id="deviceKind" class="field"><option value="wearable">Smart watch / wearable</option><option value="phone_health">Phone health platform</option><option value="smart_home">Smart home device</option><option value="sensor">Home sensor</option></select><input id="provider" class="field" placeholder="Brand / provider" required><label class="muted" style="font-size:12px"><input id="deviceConsent" type="checkbox" required> I have the elder's permission to register this device.</label><button class="btn">Register device</button></form></div></div>
-<div id="view-care" class="grid hidden">
-<div class="card wide"><div class="cardhead"><h2>Your care circle</h2><span class="pill">Consent-based access</span></div><div id="membersList" class="list"></div><div class="section"><h2>Pending invitations</h2><div id="inviteList" class="list section"></div></div><div id="inviteResult" class="notice section hidden"></div></div>
-<div class="card side"><h2>Invite someone you trust</h2><form id="inviteForm" class="list section"><input id="inviteEmail" class="field" type="email" placeholder="Their account email" required><select id="inviteRole" class="field"><option value="elder">Elder — primary care account</option><option value="caregiver">Caregiver — help manage care</option><option value="family">Family — read-only access</option><option value="viewer">Viewer — limited summary access</option></select><select id="inviteExpiry" class="field"><option value="24">Expires in 24 hours</option><option value="72" selected>Expires in 3 days</option><option value="168">Expires in 7 days</option></select><button class="btn">Create secure invitation</button></form><p class="muted section" style="font-size:12px">The code is shown once. Share it only with the named person through a private channel. They must sign in using that exact verified email address.</p><div class="divider section"></div><h2 class="section">Accept an invitation</h2><form id="acceptInviteForm" class="list section"><input id="inviteCode" class="field" placeholder="Paste invitation code" autocomplete="off" required><button class="btn light">Accept invitation</button></form></div>
-</div>
-</div>
-<div class="foot">VayoLoop · Elder-led, consent-first care · Not an emergency service</div>
-</main><div id="toast" class="toast hidden" role="status"></div>
-<script type="module" src="./app.js"></script>
-</body></html>
+<main class="shell">
+  <div class="demo-strip"><span class="demo-dot"></span><strong>DEMO MODE</strong><span>All profiles and readings are fictional. Changes are saved only in this browser. No login or live medical/device connection is used.</span></div>
+  <header class="top">
+    <div class="brand"><span class="mark">V</span><div>VayoLoop<div class="brand-tag">CARE BEYOND REMINDERS</div></div></div>
+    <div class="top-actions">
+      <div class="user-chip"><span class="avatar">AR</span><div><strong>Asha Rao</strong><small>Demo user · Elder</small></div></div>
+      <button id="largeText" class="btn ghost" type="button">A+ Text</button>
+      <button id="resetDemo" class="btn ghost" type="button">Reset demo</button>
+    </div>
+  </header>
+  <section class="hero">
+    <div><div class="eyebrow">Your care space</div><h1 id="greeting">Good morning, Asha</h1><p class="hero-copy">A calmer picture of everyday care, shared with the people who matter.</p></div>
+    <div class="hero-right"><span class="pill">Elder-led care circle</span><span class="muted" style="font-size:9px" id="todayLabel"></span></div>
+  </section>
+
+  <section class="statgrid" aria-label="Demo overview">
+    <div class="statcard"><div class="statlabel">Dose reports this week</div><div class="stat" id="doseRate">86%</div><div class="statnote">Self-reported · sample data</div></div>
+    <div class="statcard"><div class="statlabel">Active medicine records</div><div class="stat" id="medCount">3</div><div class="statnote">Fictional plan entries</div></div>
+    <div class="statcard"><div class="statlabel">Next appointment</div><div class="stat" id="apptCount" style="font-size:18px">11:30</div><div class="statnote" id="apptNote">Sample appointment</div></div>
+    <div class="statcard"><div class="statlabel">Care-circle members</div><div class="stat" id="memberCount">3</div><div class="statnote">Example role permissions</div></div>
+  </section>
+
+  <nav class="tabs" aria-label="Main sections">
+    <button class="active" data-tab="overview">Overview</button>
+    <button data-tab="medications">Medications</button>
+    <button data-tab="health">Health progress</button>
+    <button data-tab="appointments">Appointments</button>
+    <button data-tab="devices">Connected living</button>
+    <button data-tab="care">Care circle</button>
+  </nav>
+
+  <section id="view-overview" class="view active">
+    <div class="grid">
+      <article class="card wide">
+        <div class="cardhead"><h2>Today's medication plan</h2><button class="btn light small" data-go="medications">View all</button></div>
+        <div id="todayMeds" class="list"></div>
+      </article>
+      <article class="card side">
+        <div class="cardhead"><h2>Care timeline</h2><span class="pill neutral">Recent</span></div>
+        <div id="timeline" class="timeline"></div>
+      </article>
+      <article class="card half">
+        <div class="cardhead"><h2>Health patterns</h2><button class="btn light small" data-go="health">Explore</button></div>
+        <div id="trendSummary"></div>
+        <div class="notice section">Sample changes are compared with this fictional profile's earlier readings. Trends are not diagnoses or universal health scores.</div>
+      </article>
+      <article class="card half">
+        <div class="cardhead"><h2>Upcoming appointments</h2><button class="btn light small" data-go="appointments">View calendar</button></div>
+        <div id="nextAppts" class="list"></div>
+      </article>
+      <article class="card full">
+        <div class="cardhead"><h2>Weekly activity snapshot</h2><span class="pill neutral">Illustrative data</span></div>
+        <div id="activityBars" class="barrows"></div>
+      </article>
+    </div>
+  </section>
+
+  <section id="view-medications" class="view">
+    <div class="grid">
+      <article class="card wide"><div class="cardhead"><h2>Medication records</h2><span class="pill">Demo records</span></div><div id="medList" class="list"></div></article>
+      <article class="card side"><h2>Add a sample record</h2><form id="medForm" class="form section">
+        <input id="medName" class="field" placeholder="Medicine label (e.g. Medicine D)" required>
+        <div class="fieldrow"><input id="medStrength" class="field" placeholder="Strength / dose label"><input id="medTime" class="field" type="time" value="09:00" required></div>
+        <input id="medInstructions" class="field" placeholder="Demo note (not medical advice)">
+        <button class="btn">Add demo medicine</button>
+      </form><p class="muted section" style="font-size:9px">Do not use this demo to manage real medication. Always follow verified clinician instructions.</p></article>
+    </div>
+  </section>
+
+  <section id="view-health" class="view">
+    <div class="grid">
+      <article class="card wide"><div class="cardhead"><h2>Health journal</h2><span class="pill">Fictional observations</span></div><div id="healthList" class="list"></div></article>
+      <article class="card side"><h2>Add a sample observation</h2><form id="healthForm" class="form section">
+        <select id="metric" class="field"><option value="steps">Daily steps</option><option value="sleep_hours">Sleep duration</option><option value="resting_heart_rate">Resting heart rate</option><option value="blood_pressure_systolic">Blood pressure — systolic</option><option value="blood_glucose">Blood glucose</option></select>
+        <div class="fieldrow"><input id="healthValue" class="field" type="number" step="any" placeholder="Value" required><input id="healthUnit" class="field" placeholder="Unit" required></div>
+        <button class="btn">Save demo reading</button>
+      </form><div class="notice section">VayoLoop shows changes over time; it does not diagnose or judge whether a reading is safe.</div></article>
+      <article class="card full"><div class="cardhead"><h2>Progress direction</h2><span class="pill neutral">Not a health score</span></div><div id="trendDetail"></div></article>
+    </div>
+  </section>
+
+  <section id="view-appointments" class="view">
+    <div class="grid">
+      <article class="card wide"><div class="cardhead"><h2>Appointments</h2><span class="pill">Sample calendar</span></div><div id="apptList" class="list"></div></article>
+      <article class="card side"><h2>Add an appointment</h2><form id="apptForm" class="form section">
+        <input id="apptTitle" class="field" placeholder="Appointment title" required>
+        <input id="clinician" class="field" placeholder="Clinician / clinic (optional)">
+        <input id="apptDate" class="field" type="datetime-local" required>
+        <button class="btn">Add demo appointment</button>
+      </form></article>
+    </div>
+  </section>
+
+  <section id="view-devices" class="view">
+    <div class="grid">
+      <article class="card wide"><div class="cardhead"><h2>Connected living devices</h2><span class="pill blue">Simulated</span></div><div id="deviceList" class="list"></div>
+        <div class="notice section">This demo simulates device status and sample readings only. It does not connect to a real smartwatch, appliance, location service or emergency system.</div>
+        <div class="formrow section"><button id="simulateSync" class="btn light" type="button">Simulate device sync</button><button id="simulateAlert" class="btn warn" type="button">Run safety alert demo</button></div>
+      </article>
+      <article class="card side"><h2>Register a sample device</h2><form id="deviceForm" class="form section">
+        <input id="deviceName" class="field" placeholder="Device name" required>
+        <select id="deviceKind" class="field"><option value="Smart watch">Smart watch</option><option value="Phone health platform">Phone health platform</option><option value="Smart light">Smart light</option><option value="Door sensor">Door sensor</option><option value="Motion sensor">Motion sensor</option><option value="Smart speaker">Smart speaker</option></select>
+        <input id="provider" class="field" placeholder="Brand / provider label" required>
+        <label class="muted" style="font-size:10px"><input id="deviceConsent" type="checkbox" required> I have permission to include this device in the demo profile.</label>
+        <button class="btn">Add demo device</button>
+      </form></article>
+      <article class="card full"><div class="cardhead"><h2>Simulated safety event log</h2><span class="pill amber">Not monitored</span></div><div id="safetyLog" class="list"></div></article>
+    </div>
+  </section>
+
+  <section id="view-care" class="view">
+    <div class="grid">
+      <article class="card wide"><div class="cardhead"><h2>Asha's care circle</h2><span class="pill">Example permissions</span></div><div id="membersList" class="list"></div><div class="divider"></div><div class="cardhead"><h3>Demo invitations</h3><span class="muted" style="font-size:9px">Local simulation only</span></div><div id="inviteList" class="list"></div><div id="inviteResult" class="notice green section hidden"></div></article>
+      <article class="card side"><h2>Invite a trusted person</h2><form id="inviteForm" class="form section">
+        <input id="inviteEmail" class="field" type="email" placeholder="Example email address" required>
+        <select id="inviteRole" class="field"><option value="caregiver">Caregiver — assist with care</option><option value="family">Family — read-only access</option><option value="viewer">Viewer — limited summary</option></select>
+        <select id="inviteExpiry" class="field"><option value="24">Expires in 24 hours</option><option value="72" selected>Expires in 3 days</option><option value="168">Expires in 7 days</option></select>
+        <button class="btn">Generate demo invite</button>
+      </form><div class="notice section">Demo invite codes are not real access credentials and cannot be used to sign into an account.</div></article>
+    </div>
+  </section>
+
+  <footer class="foot">VayoLoop · Elder-led, consent-first care · Fictional demo data · Not a medical device or emergency service</footer>
+</main>
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+<script src="./app.js" defer></script>
+</body>
+</html>
