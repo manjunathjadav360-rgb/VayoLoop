@@ -755,6 +755,7 @@ elif section == "Health journal":
                             "Value": f"{item['value']} {item['unit']}",
                             "Recorded at": fmt_datetime(item["observed_at"]),
                             "Source": item["source"],
+                            "Data quality": "Needs review" if item.get("validation_issue") else "Validated",
                         }
                         for item in sorted(workspace["health"], key=lambda x: x["observed_at"], reverse=True)
                     ],
