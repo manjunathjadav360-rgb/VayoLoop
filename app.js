@@ -146,6 +146,24 @@
     return audioContext.state === 'running';
   }
 
+  function playReminderChime() {
+    if (!audioContext || audioContext.state !== 'running') return;
+    [0, 0.22].forEach(offset => {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const start = audioContext.currentTime + offset;
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(660, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.12, start + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.19);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start(start);
+      oscillator.stop(start + 0.2);
+    });
+  }
+
   function playAlarmTone() {
     if (!audioContext || audioContext.state !== 'running') return;
     const beep = () => {
@@ -336,6 +354,7 @@
       } else if (diff >= 0 && !state.reminderLog.includes(key)) {
         state.reminderLog.push(key);
         stateChanged = true;
+        playReminderChime();
         speak('Asha, it is time to check your sample medication routine for ' + med.name + '. Please follow your real care plan and verified clinician instructions.');
       }
     }
@@ -970,7 +989,7 @@
   if (voiceEnabled) {
     voiceStatus('Your welcome and reminders are ready. Browser audio may need the first tap anywhere on this page.',true);
     window.setTimeout(() => {
-      welcomeSpoken = speak('Hi Asha, welcome back.');
+      if (!welcomeSpoken) welcomeSpoken = speak('Hi Asha, welcome back.');
       evaluateVoiceReminders();
     }, 650);
   } else {
@@ -982,7 +1001,7 @@
     try {
       const ready = await unlockAudio();
       if (ready && activeAlarm) playAlarmTone();
-      if (!welcomeSpoken) {
+      if (!welcomeSpoken || !window.speechSynthesis?.speaking) {
         welcomeSpoken = speak('Hi Asha, welcome back.');
       }
       updateVoiceControls();
