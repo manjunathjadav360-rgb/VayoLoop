@@ -14,6 +14,7 @@ streamlit run app.py
 
 - [Architecture and data boundaries](ARCHITECTURE.md)
 - [90–120 second judge walkthrough](JUDGE_WALKTHROUGH.md)
+- [Evaluation evidence and implementation boundaries](JUDGE_EVIDENCE.md)
 - Quality checks: `npm run check`, `ruff check .`, and `python -m unittest discover -s tests -v`.
 
 ## Architecture at a glance
