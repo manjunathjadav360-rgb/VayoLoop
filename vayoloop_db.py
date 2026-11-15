@@ -54,17 +54,38 @@ def create_supabase_client(project_url: str = DEFAULT_SUPABASE_URL,
 
 
 def map_health_record(row: dict[str, Any]) -> dict[str, Any]:
-    """Validate persisted health data before it enters the application workspace."""
-    observation = normalise_health_observation(
-        row.get("metric"),
-        row.get("value"),
-        row.get("unit", ""),
-        row.get("observed_at"),
-        row.get("source") or "Not recorded",
-    )
+    """Map persisted health data and flag invalid rows without taking the workspace offline."""
+    raw_metric = row.get("metric")
+    raw_value = row.get("value")
+    raw_unit = row.get("unit", "")
+    raw_observed_at = row.get("observed_at")
+    raw_source = row.get("source") or "Not recorded"
+
+    try:
+        observation = normalise_health_observation(
+            raw_metric,
+            raw_value,
+            raw_unit,
+            raw_observed_at,
+            raw_source,
+        )
+    except (TypeError, ValueError, OverflowError) as exc:
+        metric = str(raw_metric or "Observation").strip() or "Observation"
+        observation = {
+            "metric": metric[:120],
+            "value": raw_value,
+            "unit": str(raw_unit or "")[:32],
+            "observed_at": str(raw_observed_at or ""),
+            "source": str(raw_source or "Not recorded")[:100],
+        }
+        validation_issue = str(exc)
+    else:
+        validation_issue = None
+
     return {
         "id": str(row.get("id", "")),
         **observation,
+        "validation_issue": validation_issue,
         "context": row.get("context") or {},
     }
 
