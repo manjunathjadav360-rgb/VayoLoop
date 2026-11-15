@@ -25,10 +25,15 @@ assert.match(html, /class="skip-link" href="#mainContent"/, 'Keyboard users must
 assert.match(html, /\.sr-only\{/, 'Accessible-only labels must be visually hidden, not omitted');
 assert.match(app, /event\.key === 'ArrowRight'/, 'Tabs must support right-arrow navigation');
 assert.match(app, /event\.key === 'Home'/, 'Tabs must support Home-key navigation');
+assert.match(app, /event\.key==='Tab'/, 'Guided tour must keep keyboard focus inside its dialog');
+assert.match(app, /last\.focus\(\)/, 'Guided tour must provide a keyboard focus wrap');
 assert.match(app, /view\.hidden = !active/, 'Inactive panels must be removed from keyboard focus');
-const controls = [...html.matchAll(/<(?:input|select)\b[^>]*\bid="([^"]+)"[^>]*>/g)].map(match => match[1]);
-for (const id of controls) {
-  assert.ok(html.includes('for="' + id + '"') || /aria-label=/.test(html), 'Form control must have an accessible label: ' + id);
+const controls = [...html.matchAll(/<(?:input|select)\b[^>]*>/g)].map(match => match[0]);
+for (const control of controls) {
+  const id = control.match(/\bid="([^"]+)"/)?.[1];
+  if (!id) continue;
+  const hasExplicitLabel = html.includes('for="' + id + '"') || /\baria-label=/.test(control);
+  assert.ok(hasExplicitLabel, 'Form control must have its own accessible label: ' + id);
 }
 assert.match(html, /id="healthValue"[^>]*min="0"/, 'Health sample values must reject negatives');
 assert.match(html, /prefers-reduced-motion:reduce/, 'Reduced-motion preferences must be respected');

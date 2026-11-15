@@ -1,6 +1,5 @@
 import unittest
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 from vayoloop_core import (
     INDIA_TZ,

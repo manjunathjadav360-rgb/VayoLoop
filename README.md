@@ -10,6 +10,12 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
+## Engineering notes
+
+- [Architecture and data boundaries](ARCHITECTURE.md)
+- [90–120 second judge walkthrough](JUDGE_WALKTHROUGH.md)
+- Quality checks: `npm run check`, `ruff check .`, and `python -m unittest discover -s tests -v`.
+
 ## Streamlit deployment
 
 The Streamlit application entry point is **`app.py`**.

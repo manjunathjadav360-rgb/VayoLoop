@@ -16,10 +16,12 @@ No secrets are needed for the synthetic demo. Do not add service-role keys, pers
 ## Automated repository checks
 
 The GitHub Actions workflow runs:
-1. JavaScript syntax and static-preview smoke checks.
-2. Python syntax compilation.
-3. Unit tests for medicine status and emergency event transitions.
-4. GitHub Pages deployment of the legacy static preview after the quality checks pass.
+1. JavaScript syntax, interactive wiring, safety and accessibility smoke checks.
+2. Ruff lint checks for Python modules and tests.
+3. Python syntax compilation.
+4. Unit tests for medicine status, health trends, database validation, security encoders and Care Passport output.
+5. Streamlit page-render tests for every main section.
+6. GitHub Pages deployment of the legacy static preview after the quality checks pass.
 
 A successful GitHub Pages job does **not** mean the Streamlit app has been deployed. The Streamlit Community Cloud URL is only valid after the app has been created there and its deployment succeeds.
 
