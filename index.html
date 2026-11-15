@@ -38,6 +38,70 @@ body.large-text{font-size:17px}body.large-text .item strong,body.large-text .car
 @media(max-width:500px){.tour-card{padding:19px}.tour-card h2{font-size:19px}}
 @media(max-width:820px){.journey-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.statgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.wide,.side,.half,.third{grid-column:span 12}.hero{align-items:start;flex-direction:column}.hero-right{align-items:start}.top{align-items:flex-start}.shell{padding:14px 12px 23px}}
 @media(max-width:440px){.journey-grid{grid-template-columns:1fr 1fr}.stat{font-size:21px}.card{padding:14px}.top{flex-direction:column}.top-actions{width:100%;justify-content:space-between}.tabs{gap:5px}.tabs button{padding:8px 9px}.fieldrow{grid-template-columns:1fr}}
+
+/* VayoLoop visual refresh — calm, editorial and accessible */
+:root{--ink:#20342e;--muted:#718078;--line:#e8e5dc;--paper:#f5f2e9;--white:#fffefa;--green:#245b49;--green2:#326e58;--mint:#e9efe6;--pale:#f8f7f1;--amber:#916a32;--amber-bg:#f8f0df;--red:#a74d45;--blue:#496d83;--shadow:0 8px 24px rgba(38,51,39,.045)}
+body{background:var(--paper);color:var(--ink);font-size:15px}
+.shell{max-width:1320px;padding:24px 30px 38px}
+.demo-strip{background:#f2ecdc;border-color:#e7ddc7;color:#79653e;border-radius:7px;padding:10px 14px;font-size:11px}
+.top{margin-bottom:22px}
+.brand{font-size:23px;letter-spacing:-.055em}
+.mark{width:42px;height:42px;border-radius:12px;background:var(--green);font-size:20px}
+.brand-tag{letter-spacing:.19em;font-size:9px}
+.user-chip{border:0;background:transparent;padding:4px 8px 4px 4px}
+.user-chip strong{font-size:12px}
+.user-chip small{font-size:10px}
+.role-switch{border-radius:7px;background:var(--white);padding:7px 10px}
+.btn{border-radius:7px;padding:11px 15px;font-size:12px;box-shadow:none}
+.btn:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(26,61,45,.10)}
+.btn.light{background:#eaf0e8}
+.btn.ghost{background:transparent;border-color:#d9ded5}
+.btn.warn{background:#f5ead5;color:#765622}
+.hero{position:relative;overflow:hidden;isolation:isolate;align-items:center;min-height:190px;padding:30px 34px;margin:0 0 18px;border-radius:12px;background:#234b3e;color:#fff}
+.hero:after{content:"";position:absolute;z-index:-1;width:330px;height:330px;border:1px solid rgba(255,255,255,.10);border-radius:50%;right:9%;top:-205px;box-shadow:0 0 0 35px rgba(255,255,255,.025),0 0 0 75px rgba(255,255,255,.02)}
+.hero .eyebrow{color:#c7d9c8;font-size:10px}
+.hero h1{font-size:clamp(29px,4vw,43px);font-weight:700;letter-spacing:-.055em;color:#fff;margin:10px 0}
+.hero-copy{color:#d6e1d8;font-size:13px;max-width:480px;line-height:1.6}
+.hero-right{align-items:flex-end;gap:9px}
+.hero-right .pill{background:rgba(255,255,255,.12);color:#f1f4ec;border:1px solid rgba(255,255,255,.15)}
+.hero-right .muted{color:#c8d8ce!important;font-size:10px!important}
+.hero-right .btn{background:#f3f0e6;color:#264c3e}
+.statgrid{gap:10px;margin-bottom:18px}
+.statcard{background:var(--white);border:1px solid var(--line);border-radius:9px;padding:16px 17px;box-shadow:none}
+.statlabel{font-size:10px;letter-spacing:.035em;text-transform:uppercase}
+.stat{font-size:27px;margin:8px 0 3px;color:#264e40}
+.statnote{font-size:10px}
+.tabs{gap:5px;margin-bottom:16px;border-bottom:1px solid #deded4;padding-bottom:10px}
+.tabs button{background:transparent;border:1px solid transparent;padding:10px 13px;border-radius:7px;color:#6f7a70;font-size:11px}
+.tabs button.active{background:#e5ece2;color:#244f40;border-color:#d8e2d6}
+.grid{gap:13px}
+.card{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:19px;box-shadow:0 3px 12px rgba(44,54,43,.025)}
+.card h2{font-size:15px;font-weight:750}
+.card h3{font-size:13px}
+.cardhead{margin-bottom:15px}
+.voice-card{background:#fbfcf7;border-color:#dce4d7;border-left:4px solid #52775e}
+.voice-card>p{font-size:12px!important;max-width:700px}
+.voice-actions{gap:8px}
+.voice-status{font-size:11px}
+.voice-wave i{background:#648c70}
+.missed-banner{border-radius:8px;padding:13px 14px;font-size:11px}
+.item{padding:12px 0}
+.item strong{font-size:12px}
+.item small{font-size:10px}
+.empty{font-size:12px;border-radius:8px}
+.field{background:#fffefa;border-radius:7px;font-size:12px;padding:12px}
+.notice{font-size:11px;border-radius:8px}
+.trend strong{font-size:18px}
+.journey-step{background:#f8f7f0;border-radius:8px;padding:15px}
+.journey-step strong{font-size:12px}
+.journey-step small{font-size:10px}
+.barrow{font-size:10px}
+.timeline-item strong,.member-info strong{font-size:11px}
+.timeline-item small,.member-info small{font-size:10px}
+.foot{font-size:10px}
+@media(max-width:820px){.shell{padding:14px 13px 28px}.hero{padding:24px 21px;min-height:0}.hero-right{align-items:flex-start}.hero:after{right:-190px}.statgrid{gap:8px}.card{padding:15px}}
+@media(max-width:440px){.hero{border-radius:9px;padding:22px 18px}.hero h1{font-size:30px}.statcard{padding:12px}.stat{font-size:23px}.tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:8px}.tabs button{white-space:nowrap;flex:none}.top-actions{gap:5px}.user-chip{padding-left:0}.role-switch{padding:5px 7px}}
+
 </style>
 </head>
 <body>
@@ -53,7 +117,7 @@ body.large-text{font-size:17px}body.large-text .item strong,body.large-text .car
     </div>
   </header>
   <section class="hero">
-    <div><div class="eyebrow">Your care space</div><h1 id="greeting">Good morning, Asha</h1><p class="hero-copy">A calmer picture of everyday care, shared with the people who matter.</p></div>
+    <div><div class="eyebrow">Your care space</div><h1 id="greeting">Hi Asha, welcome back.</h1><p class="hero-copy">Your day, your routines, and your people — all in one calm place.</p></div>
     <div class="hero-right"><span class="pill">Elder-led care circle</span><span class="muted" style="font-size:9px" id="todayLabel"></span><button id="startTour" class="btn" type="button">Explore the 60-second demo <span aria-hidden="true">↗</span></button></div>
   </section>
 
@@ -77,18 +141,18 @@ body.large-text{font-size:17px}body.large-text .item strong,body.large-text .car
     <div class="grid">
       <article class="card full voice-card">
         <div class="cardhead"><h2>VayoLoop voice companion</h2><span id="voiceBadge" class="pill neutral voice-badge">Voice off</span></div>
-        <p class="muted" style="font-size:10px;line-height:1.55;margin-bottom:12px">Asha can hear a spoken welcome, a plain-language care update, routine reminders and a missed-dose alert—without needing to read every card.</p>
+        <p class="muted" style="font-size:10px;line-height:1.55;margin-bottom:12px">Your welcome and routine reminders are spoken automatically when this device allows audio. You stay in control of every alert.</p>
         <div class="voice-actions">
-          <button id="enableVoice" class="btn" type="button">Enable voice companion</button>
+          <button id="enableVoice" class="btn" type="button">Resume voice &amp; sound</button>
           <button id="readHealth" class="btn light" type="button" disabled>Speak my care update</button>
           <button id="voiceCommands" class="btn ghost" type="button" disabled>Voice commands</button>
           <button id="stopSpeech" class="btn ghost" type="button" disabled>Stop speaking</button>
           <button id="stopAlarm" class="btn warn" type="button" disabled>Stop alarm</button>
           <button id="testMissedDose" class="btn ghost small" type="button">Test missed-dose alarm</button>
         </div>
-        <div class="voice-status"><span id="voiceWave" class="voice-wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="voiceStatus" aria-live="polite">Voice is off. Enable it once to hear the demo greeting and allow spoken reminders.</span></div>
+        <div class="voice-status"><span id="voiceWave" class="voice-wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span id="voiceStatus" aria-live="polite">Voice companion starts automatically where browser audio permission allows it.</span></div>
         <div id="missedDoseNotice" class="missed-banner hidden"><div><strong id="missedDoseTitle">A sample dose needs attention</strong><span id="missedDoseText">A scheduled demo dose is past its reminder window.</span></div><button id="acknowledgeAlert" class="btn warn small" type="button">Stop and review</button></div>
-        <div class="muted section" style="font-size:9px">Voice and alarms work while this page is open. Browser audio and microphone permissions vary. Demo reminders are fictional and are not a replacement for real care instructions.</div>
+        <div class="muted section" style="font-size:9px">Automatic reminders run while this page is open. Browser audio can require one interaction after opening; background alerts are not guaranteed. Sample data only.</div>
       </article>
       <article class="card wide">
         <div class="cardhead"><h2>Today's medication plan</h2><button class="btn light small" data-go="medications">View all</button></div>
