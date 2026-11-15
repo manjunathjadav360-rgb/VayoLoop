@@ -1,55 +1,58 @@
 # VayoLoop
-**Care beyond reminders.** An elder-led, consent-first care coordination prototype.
+**Care beyond reminders.** An elder-led, voice-first care coordination experience.
 
-## Current working prototype
-- Supabase email/password authentication
-- Private elder care profile
-- Medication records and user-reported dose events
-- Appointment tracking
-- Personal health journal
-- Care-circle invitations with 256-bit random one-time codes
-- SHA-256 invitation hashes stored in the database; codes expire after 1–7 days
-- Invitations accepted only by a signed-in account with the matching verified email
-- Elder, caregiver, family, and viewer roles
-- Revoke pending invitations and remove member access
-- Connected-device registry with explicit consent
-- Row Level Security and least-privilege table grants
+## Public judging demo
+The deployed site opens directly into **Asha Rao**, a fictional sample user. It does not ask judges to sign in and does not call Supabase from the public demo frontend.
 
-## Stack
-- Static HTML/CSS/JavaScript
-- Supabase Auth + Postgres + Row Level Security
-- Supabase publishable key in the browser; no service-role or secret key in frontend code
-- GitHub Actions for syntax/smoke checks and static deployment
+Demo edits are stored in the current browser only. Use **Reset demo** to restore the original sample workspace.
 
-## Deploy
-1. Open repository **Settings → Pages**.
-2. Under **Build and deployment**, set **Source** to **GitHub Actions**.
-3. The workflow validates the app and deploys the repository on pushes to `main`.
-4. Open the deployment URL shown in the **github-pages** environment.
+## Current demo capabilities
+- Medication schedule with self-reported dose events, due/missed state and a medication journey view
+- Missed-dose alert tone after a 30-minute grace period, while the demo tab is open and voice/audio has been enabled
+- Spoken welcome and plain-language summary of the recorded sample health patterns
+- Spoken medication and upcoming-appointment reminders while the demo is open
+- Optional one-shot voice commands for navigation and reading summaries, where browser speech recognition is supported
+- Stop speech and silence an alarm without falsely marking a dose as taken
+- Sample health journal and longitudinal trend direction
+- Appointment calendar and completion workflow
+- Simulated smartwatch and smart-home device events
+- Simulated possible-fall safety flow, with no real contact or emergency call
+- Care-circle role preview for Elder, Caregiver, Family and Viewer
+- Guided five-step product walkthrough
+- Larger-text accessibility control
 
-## Run locally
-Serve this folder with a static web server. The app imports Supabase JS from esm.sh, so an internet connection is required.
+## Voice companion setup
+1. Open the public demo.
+2. Tap **Enable voice companion** once to permit browser speech and unlock sound.
+3. VayoLoop speaks a welcome and a sample care update.
+4. Tap **Voice commands** and try phrases such as “read my health summary”, “open medications”, “read appointments” or “stop alarm”.
+5. Use **Test missed-dose alarm** to hear the sample alert at any time.
 
-## Care-circle permissions
-- **Owner:** creates and administers the care profile; cannot remove their own owner access.
-- **Elder:** primary elder account, with the ability to invite and manage the care circle.
-- **Caregiver:** can help manage medication records, appointments, health entries, and supported device records.
-- **Family:** read-only access to core care records.
-- **Viewer:** limited read access.
+The voice uses the speech voice supplied by the browser/device; its sound and language availability vary by device. The microphone is used only after the user taps Voice commands and depends on browser permission/support. On a later visit, the app attempts a spoken welcome if the voice preference was remembered, but browser autoplay policies may require tapping **Resume voice & sound**.
 
-Invitation codes are displayed once and must be shared privately with the named recipient. Email delivery of invitations is not yet configured.
+Voice checks run while the page is open. This prototype does not provide guaranteed background reminders after the tab is closed, when the device is asleep, or when browser audio is blocked.
 
-## Safety and scope
-- This prototype is not a medical device and does not diagnose, prescribe, or change treatment.
-- Medication adherence is self-reported; a button press is not proof a dose was taken.
-- Health entries are user-entered records. Trends require sufficient genuine measurements and are not clinical conclusions.
-- Device registration records consent and intended integration only. It does not yet connect to a smartwatch, home appliance, or emergency service.
-- No live fall detection, location tracking, ambulance dispatch, or email reminder delivery is implemented.
-- Never enter real patient information in a public demo. Use synthetic demo data clearly labelled as such.
-- This app is not an emergency service.
+## Demo data and safety
+- Every profile, person, medication, appointment, sensor reading and care event in the public demo is fictional.
+- The demo is not connected to a real smartwatch, appliance, health record, location service, email sender or emergency service.
+- A dose report is self-reported and is not proof that a medicine was taken.
+- A missed reminder is a workflow status, not evidence of harm or a clinical conclusion.
+- Health summaries describe the recorded sample values; they do not diagnose, rate health, recommend treatment or infer medication causation.
+- A simulated fall alert never contacts anyone and never places a call.
+- Do not enter real patient or personal health information in this public demo.
+- VayoLoop is not a medical device or emergency service.
 
-## Database migrations
-The live Supabase project currently has the initial care schema, owner-trigger hardening, and connected-living foundation applied. The care-circle access-control migration is included under `supabase/migrations`. Earlier bootstrap migrations still need to be backfilled into this repository before one-command database recreation is possible.
+## Engineering
+- Static HTML, CSS and JavaScript
+- Browser localStorage for demo-only persistence
+- Web Speech API speech synthesis, optional browser speech recognition, and Web Audio API sample alarm
+- GitHub Actions runs JavaScript syntax and smoke checks, then deploys the public static demo to GitHub Pages
+- The Supabase schema and secured care-circle backend are separate development foundations; they are not connected to this public demo mode
+
+## Repository and deployment
+- Repository: https://github.com/manjunathjadav360-rgb/VayoLoop
+- Demo: https://manjunathjadav360-rgb.github.io/VayoLoop/
+- GitHub Actions workflow: `.github/workflows/quality-and-deploy.yml`
 
 ## Before real-world use
-Complete an independent security review, verify invitation and RLS behavior with separate test accounts, add secure notification delivery and provider-specific device adapters, implement audit logging and account recovery, and obtain appropriate privacy/legal review. Keep all Supabase secret keys out of frontend code.
+Replace local demo data with an authenticated backend connection, verify all role permissions with separate test accounts, add provider-specific and consent-based wearable/home adapters, implement secure reminder delivery and audit trails, complete accessibility and device testing, and obtain appropriate privacy, clinical-safety and legal reviews. Production voice reminders need dependable background delivery and monitored failure handling; a browser tab alone is not sufficient for critical medication care.
