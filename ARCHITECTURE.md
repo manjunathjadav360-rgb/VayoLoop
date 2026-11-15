@@ -120,7 +120,7 @@ flowchart TD
 | `source` | No | Defaults to `Imported wearable CSV`; maximum 100 characters |
 
 - Upload limit: 2 MB and 500 non-empty rows.
-- UTF-8 and UTF-8-with-BOM are accepted. Missing columns, malformed values, non-finite numbers and timezone-naive timestamps are rejected.
+- UTF-8 and UTF-8-with-BOM are accepted. Missing or duplicate headers, rows with extra fields, boolean/non-finite values and timezone-naive timestamps are rejected.
 - Duplicate fingerprint: case-insensitive metric and unit, numeric value, and observation instant normalised to UTC. Duplicates within the file and against the loaded workspace are skipped.
 - The user sees a preview and must confirm before any write. In cloud mode, the validated list is sent in one batch insert; in offline/test mode, rows are added to the current Streamlit session only.
 - The upload does not authenticate the originating device or prove that a reading came from a physical wearable.
