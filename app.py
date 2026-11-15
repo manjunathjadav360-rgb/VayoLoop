@@ -20,6 +20,8 @@ from vayoloop_core import (
     seed_demo_state,
 )
 
+from care_passport import build_care_passport, render_care_passport_html
+
 st.set_page_config(
     page_title="VayoLoop — Care beyond reminders",
     page_icon="🌿",
@@ -274,8 +276,9 @@ with st.sidebar:
     st.markdown("---")
     section = st.radio(
         "Workspace",
-        ["Home", "Medicines", "Health journal", "Appointments", "Family circle", "Emergency centre", "Connected living", "Local support"],
+        ["Home", "Medicines", "Health journal", "Appointments", "Family circle", "Emergency centre", "Connected living", "Local support", "Care Passport"],
         label_visibility="collapsed",
+        key="workspace_section",
     )
     st.markdown("---")
     st.caption("Synthetic profile · Asha Rao")
@@ -314,6 +317,25 @@ m3.metric("Next appointment", fmt_datetime(upcoming_appointments[0]["when"]).spl
 m4.metric("Open safety events", len(unresolved))
 
 if section == "Home":
+    with st.expander("Guided demo · follow one family care journey", expanded=False):
+        st.caption("A short walkthrough for judges: record a routine, notice a change, coordinate support, test the safety flow, then prepare a care handoff.")
+        g1, g2, g3 = st.columns(3)
+        if g1.button("1 · Medicine routine", use_container_width=True):
+            st.session_state.workspace_section = "Medicines"
+            st.rerun()
+        if g2.button("2 · Health journal", use_container_width=True):
+            st.session_state.workspace_section = "Health journal"
+            st.rerun()
+        if g3.button("3 · Family coordination", use_container_width=True):
+            st.session_state.workspace_section = "Family circle"
+            st.rerun()
+        g4, g5 = st.columns(2)
+        if g4.button("4 · Safety response", use_container_width=True):
+            st.session_state.workspace_section = "Emergency centre"
+            st.rerun()
+        if g5.button("5 · Build Care Passport", use_container_width=True):
+            st.session_state.workspace_section = "Care Passport"
+            st.rerun()
     st.subheader("Your care, at a glance")
     components.html(voice_companion_html(workspace["meds"], workspace["appointments"], VOICE_LANGUAGES[language_label]), height=75, scrolling=False)
     left, right = st.columns([1.25, 0.75], gap="large")
@@ -380,13 +402,16 @@ elif section == "Medicines":
                     st.markdown(f"**{html.escape(med['name'])}** · {html.escape(med['strength'])}")
                     st.caption(f"Scheduled {med['time']} · {med['instructions']}")
                     state = medication_state(med, workspace["dose_reports"])
-                    st.markdown(f"{status_badge(state)} **{state}**")
-                    if med["remaining_units"] <= 5:
+                    if med.get("active", True):
+                        st.markdown(f"{status_badge(state)} **{state}**")
+                    else:
+                        st.markdown("• **Inactive record**")
+                    if med["remaining_units"] <= 5 and med.get("active", True):
                         st.warning(f"Refill planning: approximately {med['remaining_units']} sample units recorded. Confirm actual supply before arranging a refill.")
                     else:
                         st.caption(f"Sample supply record: {med['remaining_units']} units · update manually.")
                 with b:
-                    if st.button("Report as taken", key=f"report_{med['id']}", disabled=state == "Reported today", use_container_width=True):
+                    if st.button("Report as taken", key=f"report_{med['id']}", disabled=state == "Reported today" or not med.get("active", True), use_container_width=True):
                         workspace["dose_reports"].append(record_dose(med["id"]))
                         add_event("Dose self-reported", f"{med['name']} · entered by demo user")
                         st.rerun()
@@ -704,6 +729,106 @@ elif section == "Local support":
     st.markdown("**Health information sharing, later**")
     st.markdown("<div class='vl-note'>VayoLoop can be designed for optional ABDM / ABHA compatibility. This demo does not connect to ABDM, request an ABHA number or exchange medical records. Any future record exchange must use the official consent process.</div>", unsafe_allow_html=True)
     st.markdown("For urgent help in India, call **112**. [Official emergency response portal](https://112.gov.in/).")
+
+elif section == "Care Passport":
+    st.subheader("Care Passport")
+    st.caption("A portable, date-stamped handoff view that brings the care circle's key records together. This demo uses fictional, session-only data.")
+    passport = build_care_passport(workspace, profile_name="Asha Rao")
+    p1, p2, p3, p4 = st.columns(4)
+    p1.metric("Active medicines", passport["counts"]["active_medicines"])
+    p2.metric("Health observations", passport["counts"]["health_observations_included"])
+    p3.metric("Appointments", passport["counts"]["appointments"])
+    p4.metric("Trusted contacts", passport["counts"]["trusted_contacts"])
+
+    with st.container(border=True):
+        st.markdown("**Medication plan**")
+        st.table([
+            {"Medicine": item["name"], "Label": item["label"], "Time": item["scheduled_time"], "Status": item["status"], "Approx. units": item["approx_supply_units"]}
+            for item in passport["medicines"]
+        ] or [{"Medicine": "No medicine records"}])
+        st.caption("A dose report is self-reported. It does not prove ingestion or authorise a prescription change.")
+
+    with st.container(border=True):
+        st.markdown("**Recent health observations**")
+        st.table([
+            {"Observation": item["metric"], "Value": f'{item["value"]} {item["unit"]}', "Observed": item["observed_at_display"], "Source": item["source"]}
+            for item in passport["health_observations"][:8]
+        ] or [{"Observation": "No observations recorded"}])
+        st.markdown("**Recent dose reports**")
+        st.table([
+            {"Medicine": item["medicine"], "Reported at": item["reported_at_display"], "Record type": item["source"]}
+            for item in passport["dose_reports"][:8]
+        ] or [{"Medicine": "No dose reports recorded"}])
+
+    left, right = st.columns(2)
+    with left:
+        with st.container(border=True):
+            st.markdown("**Appointments and family tasks**")
+            st.table([
+                {"Visit": item["visit"], "When": item["when_display"], "Status": item["status"]}
+                for item in passport["appointments"]
+            ] or [{"Visit": "No appointments recorded"}])
+            st.table([
+                {"Task": item["task"], "Assigned to": item["assignee"], "Due": item["due_display"], "Status": item["status"]}
+                for item in passport["family_tasks"]
+            ] or [{"Task": "No family tasks recorded"}])
+    with right:
+        with st.container(border=True):
+            st.markdown("**Trusted care circle**")
+            st.table([
+                {"Priority": item["priority"], "Name": item["name"], "Relationship": item["relationship"]}
+                for item in passport["care_circle"]
+            ] or [{"Name": "No trusted contacts recorded"}])
+            checkin = passport["latest_wellbeing_checkin"]
+            st.markdown("**Latest wellbeing check-in**")
+            if checkin:
+                st.write(f'Recorded {checkin["recorded_at_display"]}')
+                st.write(f'Meals: {checkin["meals"]} · Water: {checkin["hydration"]} · Mood: {checkin["mood"]}')
+                if checkin["note"]:
+                    st.caption(checkin["note"])
+            else:
+                st.caption("No wellbeing check-in recorded yet.")
+            st.markdown("**Connected device register**")
+            st.table([
+                {"Device": item["name"], "Type": item["kind"], "Status": item["status"], "Last sync": item["last_sync_display"]}
+                for item in passport["connected_devices"]
+            ] or [{"Device": "No devices registered"}])
+
+    if passport["active_safety_events"]:
+        st.warning(f'{len(passport["active_safety_events"])} open safety test event(s) are included. These are simulated and have not notified anyone.')
+    st.markdown(
+        "<div class='vl-note'>This export is a convenience summary, not a medical record. Bring the original prescription and verified reports to appointments. Only share care details with the elder's permission. No information is sent to a clinician or family member by downloading this file.</div>",
+        unsafe_allow_html=True,
+    )
+    with st.container(border=True):
+        st.markdown("**Export this care handoff**")
+        st.caption(f'Profile: Asha Rao · Generated {passport["profile"]["generated_at_display"]} · Asia/Kolkata')
+        export_allowed = st.checkbox(
+            "I understand this export contains care details and should only be shared with the elder's permission.",
+            key="passport_export_consent",
+        )
+        html_export = render_care_passport_html(passport)
+        json_export = json.dumps(passport, ensure_ascii=False, indent=2)
+        file_date = india_now().date().isoformat()
+        e1, e2 = st.columns(2)
+        e1.download_button(
+            "Download print-ready Care Passport",
+            data=html_export,
+            file_name=f"vayoloop-care-passport-{file_date}.html",
+            mime="text/html",
+            disabled=not export_allowed,
+            type="primary",
+            use_container_width=True,
+        )
+        e2.download_button(
+            "Download JSON data backup",
+            data=json_export,
+            file_name=f"vayoloop-care-data-{file_date}.json",
+            mime="application/json",
+            disabled=not export_allowed,
+            use_container_width=True,
+        )
+        st.caption("The HTML file can be opened in a browser and printed or saved as PDF. Both downloads are generated locally from this demo session.")
 
 st.markdown("---")
 st.markdown(
