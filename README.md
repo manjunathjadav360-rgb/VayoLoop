@@ -33,6 +33,8 @@ No secrets are required for the synthetic-data demo. Do not add real patient inf
 - **Emergency centre:** demonstrate possible-fall confirmation, manual SOS, simulated family escalation, contact acknowledgements and resolution history.
 - **Connected living:** sample wearable and home-sensor register, last-sync visibility and simulated device events.
 - **Local care directory:** add the family's own clinics, hospitals, pharmacies and home-care contacts. It starts empty rather than inventing local providers.
+- **Care Passport:** assemble medication records, self-reported dose history, health observations, appointments, wellbeing check-ins, family tasks, trusted contacts and device status into a print-friendly handoff; export HTML or a structured JSON backup after an explicit sharing acknowledgement.
+- **Guided demo:** a five-step path from medication routine through health journal, family coordination and safety simulation to the Care Passport.
 - **India-aware emergency information:** 112 is presented as the national emergency number; the demo does not dial it or contact emergency services.
 
 ## Important limitations
@@ -45,6 +47,7 @@ This is a **synthetic-data hackathon prototype**, not a medical device, care pro
 - Browser speech and reminder tones depend on device/browser support, audio permission and the page staying open. They are not reliable background or life-safety alerts when the browser is closed or the phone is asleep.
 - Voice phrases depend on speech voices installed on the device; language coverage varies.
 - Streamlit session state is temporary demo storage. It is not a durable patient record or secure multi-user database.
+- Care Passport downloads are generated from the current demo session only; they are not saved to a server or sent to a clinician or family member. The export should only be shared with the elder's permission.
 - A dose report is self-reported and is not proof of ingestion. The app never changes a prescription, recommends a dose or decides treatment.
 - Health trends describe entered sample values only. They do not diagnose or infer causes.
 - Device compatibility depends on individual provider APIs and permissions; VayoLoop does not connect to every smartwatch or appliance.
