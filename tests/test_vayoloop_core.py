@@ -111,6 +111,10 @@ class VayoLoopCoreTests(unittest.TestCase):
             {"metric": "Sleep", "unit": "hours", "value": 6.5,
              "observed_at": "not-a-date"},
         ]
+        records.append({
+            "metric": "Sleep", "unit": "hours", "value": True,
+            "observed_at": now.isoformat(),
+        })
         result = analyse_health_trends(records, now=now)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["count"], 1)
