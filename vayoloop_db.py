@@ -1,7 +1,9 @@
-"""Authenticated, row-scoped persistence for VayoLoop health and prescription records.
+"""Shared synthetic demo persistence for VayoLoop.
 
-This module uses only a Supabase publishable key. RLS and private Storage
-policies enforce the actual access boundaries; never add a service-role key.
+There is intentionally no sign-in or account UI. The public hackathon demo uses
+one shared workspace and therefore must contain fictional data only. Database
+policies scope all access to one fixed demo workspace; no service-role key is
+used or embedded in the application.
 """
 from __future__ import annotations
 
@@ -9,8 +11,15 @@ import re
 import uuid
 from typing import Any
 
+DEMO_WORKSPACE_ID = "00000000-0000-4000-8000-000000000001"
 BUCKET_NAME = "vayoloop-prescriptions"
 MAX_PRESCRIPTION_BYTES = 10 * 1024 * 1024
+
+# A Supabase publishable key is intended for public clients. RLS policies limit
+# this app to a single fictional demo workspace. A secret/service-role key is
+# never used here.
+DEFAULT_SUPABASE_URL = "https://vhugnytmbjktbhlspgyx.supabase.co"
+DEFAULT_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_2SxGxrtA5oPY1h6oDaBUMw_DLrVbRdU"
 
 _ALLOWED_MIME = {
     ".pdf": "application/pdf",
@@ -21,65 +30,13 @@ _ALLOWED_MIME = {
 }
 
 
-def create_supabase_client(project_url: str, publishable_key: str) -> Any:
-    """Create a per-Streamlit-session client; never share an authenticated client globally."""
+def create_supabase_client(project_url: str = DEFAULT_SUPABASE_URL,
+                           publishable_key: str = DEFAULT_SUPABASE_PUBLISHABLE_KEY) -> Any:
+    """Create an unauthenticated client using the public publishable key."""
+    if not project_url or not publishable_key:
+        raise ValueError("VayoLoop demo storage is not configured.")
     from supabase import create_client
-
     return create_client(project_url, publishable_key)
-
-
-def get_current_user(client: Any) -> dict[str, str]:
-    response = client.auth.get_user()
-    user = getattr(response, "user", None)
-    if user is None:
-        data = getattr(response, "data", None)
-        user = getattr(data, "user", None)
-    if user is None or not getattr(user, "id", None):
-        raise RuntimeError("The account session has expired. Please sign in again.")
-    return {"id": str(user.id), "email": str(getattr(user, "email", "") or "")}
-
-
-def ensure_elder_profile(client: Any, user_id: str) -> dict[str, Any]:
-    """Return this account's own care profile, creating it once on first sign-in."""
-    result = (
-        client.table("elder_profiles")
-        .select("id,display_name,preferred_language,timezone")
-        .eq("created_by", user_id)
-        .order("created_at")
-        .limit(1)
-        .execute()
-    )
-    rows = getattr(result, "data", None) or []
-    if rows:
-        return rows[0]
-
-    created = (
-        client.table("elder_profiles")
-        .insert({
-            "created_by": user_id,
-            "display_name": "My care profile",
-            "preferred_language": "en",
-            "timezone": "Asia/Kolkata",
-        })
-        .execute()
-    )
-    created_rows = getattr(created, "data", None) or []
-    if created_rows:
-        return created_rows[0]
-
-    # Some PostgREST configurations return no representation after INSERT.
-    verify = (
-        client.table("elder_profiles")
-        .select("id,display_name,preferred_language,timezone")
-        .eq("created_by", user_id)
-        .order("created_at")
-        .limit(1)
-        .execute()
-    )
-    verify_rows = getattr(verify, "data", None) or []
-    if not verify_rows:
-        raise RuntimeError("Your care profile could not be created. Please try again.")
-    return verify_rows[0]
 
 
 def map_health_record(row: dict[str, Any]) -> dict[str, Any]:
@@ -111,15 +68,15 @@ def map_prescription_record(row: dict[str, Any]) -> dict[str, Any]:
         "document_path": str(row.get("document_path") or ""),
         "review_status": str(row.get("review_status") or "pending_review"),
         "is_cloud": True,
-        "storage_note": "Original file is stored privately in VayoLoop Storage; access follows care-circle permissions.",
+        "storage_note": "Original file is in the shared demo workspace; use fictional documents only.",
     }
 
 
-def list_health_observations(client: Any, elder_id: str) -> list[dict[str, Any]]:
+def list_health_observations(client: Any) -> list[dict[str, Any]]:
     result = (
-        client.table("health_observations")
+        client.table("vayoloop_demo_health_observations")
         .select("id,metric,value,unit,observed_at,source,context")
-        .eq("elder_id", elder_id)
+        .eq("workspace_id", DEMO_WORKSPACE_ID)
         .order("observed_at", desc=True)
         .limit(1000)
         .execute()
@@ -129,35 +86,32 @@ def list_health_observations(client: Any, elder_id: str) -> list[dict[str, Any]]
 
 def save_health_observation(
     client: Any,
-    elder_id: str,
-    user_id: str,
     metric: str,
     value: float,
     unit: str,
     observed_at: str,
     source: str,
 ) -> None:
-    client.table("health_observations").insert({
-        "elder_id": elder_id,
+    client.table("vayoloop_demo_health_observations").insert({
+        "workspace_id": DEMO_WORKSPACE_ID,
         "metric": metric,
         "value": value,
         "unit": unit,
         "observed_at": observed_at,
         "source": source,
         "context": {},
-        "recorded_by": user_id,
     }).execute()
 
 
-def list_prescription_records(client: Any, elder_id: str) -> list[dict[str, Any]]:
+def list_prescription_records(client: Any) -> list[dict[str, Any]]:
     result = (
-        client.table("prescription_records")
+        client.table("vayoloop_demo_prescriptions")
         .select(
             "id,title,clinician_name,prescribed_on,document_path,review_status,"
             "created_at,clinic_name,condition_as_written,notes,original_file_name,"
             "file_content_type,file_size_bytes"
         )
-        .eq("elder_id", elder_id)
+        .eq("workspace_id", DEMO_WORKSPACE_ID)
         .order("created_at", desc=True)
         .limit(100)
         .execute()
@@ -172,13 +126,13 @@ def sanitise_filename(filename: str) -> str:
 
 
 def detect_prescription_mime(filename: str, declared_type: str, payload: bytes) -> str:
-    """Allow only supported document signatures; the uploader's MIME label alone is not trusted."""
+    """Allow only supported document signatures; do not trust the browser MIME label alone."""
     extension = "." + str(filename).rsplit(".", 1)[-1].lower() if "." in str(filename) else ""
     expected = _ALLOWED_MIME.get(extension)
     if expected is None:
         raise ValueError("Upload a PDF, JPG, PNG or WebP prescription.")
-    if len(payload) > MAX_PRESCRIPTION_BYTES:
-        raise ValueError("This file is larger than 10 MB. Choose a smaller copy.")
+    if not payload or len(payload) > MAX_PRESCRIPTION_BYTES:
+        raise ValueError("The file is empty or larger than 10 MB.")
 
     if payload.startswith(b"%PDF-"):
         actual = "application/pdf"
@@ -200,8 +154,6 @@ def detect_prescription_mime(filename: str, declared_type: str, payload: bytes) 
 
 def save_prescription_record(
     client: Any,
-    elder_id: str,
-    user_id: str,
     payload: bytes,
     filename: str,
     declared_type: str,
@@ -214,7 +166,7 @@ def save_prescription_record(
 ) -> dict[str, Any]:
     mime_type = detect_prescription_mime(filename, declared_type, payload)
     safe_name = sanitise_filename(filename)
-    path = f"{elder_id}/{uuid.uuid4().hex}_{safe_name}"
+    path = f"{DEMO_WORKSPACE_ID}/{uuid.uuid4().hex}_{safe_name}"
 
     client.storage.from_(BUCKET_NAME).upload(
         path,
@@ -223,14 +175,13 @@ def save_prescription_record(
     )
 
     try:
-        response = client.table("prescription_records").insert({
-            "elder_id": elder_id,
+        response = client.table("vayoloop_demo_prescriptions").insert({
+            "workspace_id": DEMO_WORKSPACE_ID,
             "title": (title or safe_name).strip()[:180],
             "clinician_name": clinician_name.strip() or None,
             "prescribed_on": prescribed_on,
             "document_path": path,
             "review_status": "pending_review",
-            "created_by": user_id,
             "clinic_name": clinic_name.strip() or None,
             "condition_as_written": condition_as_written.strip() or None,
             "notes": notes.strip() or None,
@@ -241,7 +192,7 @@ def save_prescription_record(
         rows = getattr(response, "data", None) or []
         if rows:
             return map_prescription_record(rows[0])
-        loaded = list_prescription_records(client, elder_id)
+        loaded = list_prescription_records(client)
         if loaded and loaded[0].get("document_path") == path:
             return loaded[0]
         raise RuntimeError("The file uploaded, but its record could not be confirmed.")
@@ -254,6 +205,8 @@ def save_prescription_record(
 
 
 def download_prescription_file(client: Any, path: str) -> bytes:
+    if not path.startswith(f"{DEMO_WORKSPACE_ID}/"):
+        raise ValueError("The requested file is outside the VayoLoop demo workspace.")
     result = client.storage.from_(BUCKET_NAME).download(path)
     if isinstance(result, bytes):
         return result
@@ -262,7 +215,11 @@ def download_prescription_file(client: Any, path: str) -> bytes:
     raise RuntimeError("The stored document could not be downloaded.")
 
 
-def delete_prescription_record(client: Any, elder_id: str, record_id: str, path: str) -> None:
+def delete_prescription_record(client: Any, record_id: str, path: str) -> None:
+    client.table("vayoloop_demo_prescriptions").delete().eq(
+        "id", record_id
+    ).eq("workspace_id", DEMO_WORKSPACE_ID).execute()
     if path:
+        if not path.startswith(f"{DEMO_WORKSPACE_ID}/"):
+            raise ValueError("The requested file is outside the VayoLoop demo workspace.")
         client.storage.from_(BUCKET_NAME).remove([path])
-    client.table("prescription_records").delete().eq("id", record_id).eq("elder_id", elder_id).execute()
