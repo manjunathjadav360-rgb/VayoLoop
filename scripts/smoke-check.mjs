@@ -37,6 +37,9 @@ for (const control of controls) {
 }
 assert.match(html, /id="healthValue"[^>]*min="0"/, 'Health sample values must reject negatives');
 assert.match(html, /prefers-reduced-motion:reduce/, 'Reduced-motion preferences must be respected');
+assert.match(html, /Content-Security-Policy/, 'Static preview must declare a restrictive content security policy');
+assert.match(html, /strict-origin-when-cross-origin/, 'External navigation must use a conservative referrer policy');
+assert.doesNotMatch(html, /<script[^>]+src="https?:\/\//i, 'No third-party script source should be loaded');
 
 assert.match(html, /DEMO MODE/, 'The public app must clearly identify itself as a demo');
 assert.match(html, /Asha Rao/, 'The demo user must be visible');

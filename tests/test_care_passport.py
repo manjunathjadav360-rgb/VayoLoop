@@ -59,6 +59,26 @@ class CarePassportTests(unittest.TestCase):
         self.assertIn("Clinic visit prescription", rendered)
         self.assertIn("Original file available only in the active demo session", rendered)
 
+    def test_medicine_source_prescription_is_carried_into_handoff(self):
+        self.workspace["prescriptions"] = [{
+            "id": "rx-1",
+            "document_label": "November clinic prescription",
+            "file_name": "november.pdf",
+            "uploaded_at": self.now.isoformat(),
+        }]
+        self.workspace["meds"][0]["prescription_id"] = "rx-1"
+        self.workspace["meds"][1]["prescription_id"] = "rx-missing"
+
+        snapshot = build_care_passport(self.workspace, generated_at=self.now)
+        linked = next(item for item in snapshot["medicines"] if item["name"] == "Medicine A")
+        missing = next(item for item in snapshot["medicines"] if item["name"] == "Medicine B")
+
+        self.assertEqual(linked["source_prescription"], "November clinic prescription")
+        self.assertEqual(missing["source_prescription"], "Source document unavailable")
+        rendered = render_care_passport_html(snapshot)
+        self.assertIn("Source prescription", rendered)
+        self.assertIn("November clinic prescription", rendered)
+
     def test_print_html_escapes_user_content_and_has_print_styles(self):
         self.workspace["contacts"][0]["name"] = "<script>alert(1)</script>"
         snapshot = build_care_passport(self.workspace, generated_at=self.now)

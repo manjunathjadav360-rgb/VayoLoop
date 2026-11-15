@@ -485,6 +485,11 @@ if section == "Home":
 elif section == "Medicines":
     st.subheader("Medication journey")
     st.markdown("<div class='vl-muted'>Prescription record → daily routine → self-report → refill planning → professional review.</div>", unsafe_allow_html=True)
+    prescription_lookup = {
+        str(item["id"]): item
+        for item in workspace.get("prescriptions", [])
+        if item.get("id")
+    }
     left, right = st.columns([1.25, 0.75], gap="large")
     with left:
         for med in workspace["meds"]:
@@ -493,6 +498,16 @@ elif section == "Medicines":
                 with a:
                     st.markdown(f"**{html_text(med['name'])}** · {html_text(med['strength'])}")
                     st.caption(f"Scheduled {med['time']} · {med['instructions']}")
+                    linked_source = prescription_lookup.get(str(med.get("prescription_id") or ""))
+                    if linked_source:
+                        st.caption(
+                            "Source prescription: "
+                            + str(linked_source.get("document_label") or linked_source.get("file_name") or "Saved document")
+                        )
+                    elif med.get("prescription_id"):
+                        st.caption("Linked source document is no longer available.")
+                    else:
+                        st.caption("No source prescription linked.")
                     state = medication_state(med, workspace["dose_reports"])
                     if med.get("active", True):
                         st.markdown(f"{status_badge(state)} **{state}**")
@@ -527,12 +542,35 @@ elif section == "Medicines":
                 strength = st.text_input("Strength / label", placeholder="As written on the prescription")
                 med_time = st.time_input("Reminder time", value=time(9, 0), step=timedelta(minutes=5))
                 instructions = st.text_input("Routine note", placeholder="Example: after breakfast")
+                prescription_options = {"": "No source document linked"}
+                prescription_options.update({
+                    str(item["id"]): str(
+                        item.get("document_label") or item.get("file_name") or "Saved prescription"
+                    )
+                    for item in workspace.get("prescriptions", [])
+                    if item.get("id")
+                })
+                source_prescription_id = st.selectbox(
+                    "Source prescription document",
+                    options=list(prescription_options),
+                    format_func=lambda value: prescription_options[value],
+                )
+                st.caption("This is a recordkeeping link only. It does not verify clinical suitability or authorise a prescription change.")
                 stock = st.number_input("Approximate supply units", min_value=0, max_value=365, value=14)
                 if st.form_submit_button("Add medicine record", type="primary", use_container_width=True):
                     if not name.strip():
                         st.error("Enter a medicine label.")
                     else:
-                        workspace["meds"].append({"id": f"med-{len(workspace['meds'])+1}-{int(datetime.now().timestamp())}", "name": name.strip(), "strength": strength.strip() or "Not entered", "time": med_time.strftime("%H:%M"), "instructions": instructions.strip() or "No extra note", "remaining_units": int(stock), "active": True})
+                        workspace["meds"].append({
+                            "id": f"med-{len(workspace['meds'])+1}-{int(datetime.now().timestamp())}",
+                            "name": name.strip(),
+                            "strength": strength.strip() or "Not entered",
+                            "time": med_time.strftime("%H:%M"),
+                            "instructions": instructions.strip() or "No extra note",
+                            "remaining_units": int(stock),
+                            "active": True,
+                            "prescription_id": source_prescription_id or None,
+                        })
                         add_event("Medicine record added", f"{name.strip()} · sample record")
                         st.success("Sample record added.")
                         st.rerun()
@@ -1117,7 +1155,7 @@ elif section == "Care Passport":
     with st.container(border=True):
         st.markdown("**Medication plan**")
         st.table([
-            {"Medicine": item["name"], "Label": item["label"], "Time": item["scheduled_time"], "Status": item["status"], "Approx. units": item["approx_supply_units"]}
+            {"Medicine": item["name"], "Label": item["label"], "Time": item["scheduled_time"], "Status": item["status"], "Source prescription": item["source_prescription"], "Approx. units": item["approx_supply_units"]}
             for item in passport["medicines"]
         ] or [{"Medicine": "No medicine records"}])
         st.caption("A dose report is self-reported. It does not prove ingestion or authorise a prescription change.")

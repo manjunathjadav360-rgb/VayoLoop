@@ -52,7 +52,7 @@ Only health observations and prescription records currently persist. Medicines, 
 
 - **Elder-first home:** short greeting, daily overview, larger-text option and simple navigation.
 - **Voice companion:** optional one-time browser audio enablement; attempts a spoken welcome and checks scheduled sample medicine and appointment reminders while the page remains open. Reminder phrases include English, Hindi, Kannada, Gujarati, Marathi, Tamil, Telugu and Bengali.
-- **Medication journey:** sample medicine records, scheduled times, self-reported dose events, overdue-unconfirmed state, refill planning and a traceable activity log.
+- **Medication journey:** sample medicine records, scheduled times, self-reported dose events, overdue-unconfirmed state, refill planning, and optional links from medicine entries to the source prescription document. The link is for record traceability only, not clinical suitability checking.
 - **Prescription library:** store PDF or image copies, metadata and the original file in the shared demo workspace; download or delete demo files. This prototype does not run OCR or medicine-disease checks.
 - **Health record book:** timestamped readings with source labels, personal comparisons and CSV / JSON export. Readings persist in the shared demo workspace.
 - **Daily wellbeing check-in:** simple family check-in for meals, water, mood and optional notes; not a clinical assessment.

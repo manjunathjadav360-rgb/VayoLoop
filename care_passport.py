@@ -25,6 +25,11 @@ def build_care_passport(
     """Build a serialisable snapshot without mutating the active demo workspace."""
     stamp = generated_at or india_now()
     medicine_names = {item["id"]: item["name"] for item in workspace.get("meds", [])}
+    prescription_names = {
+        str(item["id"]): str(item.get("document_label") or item.get("file_name") or "Saved prescription")
+        for item in workspace.get("prescriptions", [])
+        if item.get("id")
+    }
 
     medicines = []
     for item in sorted(workspace.get("meds", []), key=lambda value: (not value.get("active", True), value.get("time", ""))):
@@ -37,6 +42,11 @@ def build_care_passport(
             "active": active,
             "status": medication_state(item, workspace.get("dose_reports", []), stamp) if active else "Inactive record",
             "approx_supply_units": item.get("remaining_units"),
+            "source_prescription": (
+                prescription_names.get(str(item.get("prescription_id")))
+                if item.get("prescription_id")
+                else "Not linked"
+            ) or "Source document unavailable",
         })
 
     dose_reports = []
@@ -188,7 +198,10 @@ def render_care_passport_html(snapshot: dict[str, Any]) -> str:
         return f"<div class='table-wrap'><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>"
 
     meds = [
-        [x["name"], x["label"], x["scheduled_time"], x["status"], x["approx_supply_units"]]
+        [
+            x["name"], x["label"], x["scheduled_time"], x["status"],
+            x.get("source_prescription", "Not linked"), x["approx_supply_units"],
+        ]
         for x in snapshot["medicines"]
     ]
     doses = [[x["medicine"], x["reported_at_display"], x["source"]] for x in snapshot["dose_reports"]]
@@ -210,7 +223,7 @@ def render_care_passport_html(snapshot: dict[str, Any]) -> str:
         wellbeing = "<p class='empty'>No wellbeing check-in has been recorded in this session.</p>"
 
     sections = [
-        ("Medication plan", table(["Medicine", "Label / strength", "Scheduled", "Current status", "Approx. supply units"], meds)),
+        ("Medication plan", table(["Medicine", "Label / strength", "Scheduled", "Current status", "Source prescription", "Approx. supply units"], meds)),
         ("Prescription documents", table(["Document", "Prescription date", "Clinic", "Prescriber", "File", "Availability"], prescriptions)),
         ("Recent dose reports", table(["Medicine", "Reported at", "Record source"], doses)),
         ("Recent health observations", table(["Observation", "Recorded value", "Observed at", "Source"], health)),
