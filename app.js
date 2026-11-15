@@ -1,465 +1,458 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+(() => {
+  'use strict';
 
-const SUPABASE_URL = 'https://vhugnytmbjktbhlspgyx.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_2SxGxrtA5oPY1h6oDaBUMw_DLrVbRdU';
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+  const STORAGE_KEY = 'vayoloop_demo_workspace_v1';
+  const $ = id => document.getElementById(id);
+  const now = () => new Date();
+  const iso = date => new Date(date).toISOString();
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+  const dateLabel = (value, withTime = true) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Date not set';
+    return date.toLocaleString([], withTime
+      ? {weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}
+      : {weekday:'short', month:'short', day:'numeric'});
+  };
+  const clockLabel = value => new Date(value).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  const startOfDay = date => {
+    const d = new Date(date); d.setHours(0,0,0,0); return d;
+  };
+  const dateOffset = (days, hour = 9, minute = 0) => {
+    const d = new Date(); d.setDate(d.getDate() + days); d.setHours(hour, minute, 0, 0); return d;
+  };
+  const makeId = prefix => prefix + '-' + Math.random().toString(36).slice(2,10);
+  const empty = text => '<div class="empty">' + esc(text) + '</div>';
 
-let user = null;
-let elder = null;
-let meds = [];
-let health = [];
-let appointments = [];
-let devices = [];
-let memberships = [];
-let invitations = [];
-let myRole = null;
-
-const $ = id => document.getElementById(id);
-const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
-  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-}[c]));
-const toast = message => {
-  $('toast').textContent = message;
-  $('toast').classList.remove('hidden');
-  window.clearTimeout(toast.timer);
-  toast.timer = window.setTimeout(() => $('toast').classList.add('hidden'), 3500);
-};
-const show = (id, visible = true) => $(id)?.classList.toggle('hidden', !visible);
-const dateText = value => value
-  ? new Date(value).toLocaleString([], { dateStyle:'medium', timeStyle:'short' })
-  : 'Date not set';
-const errorText = error => error?.message || 'Something went wrong. Please try again.';
-const empty = message => '<div class="empty">' + esc(message) + '</div>';
-
-function setTab(tab) {
-  document.querySelectorAll('[data-tab]').forEach(button => {
-    button.classList.toggle('active', button.dataset.tab === tab);
-  });
-  ['overview','medications','health','appointments','devices','care'].forEach(name => {
-    show('view-' + name, name === tab);
-  });
-}
-
-document.querySelectorAll('[data-tab]').forEach(button => {
-  button.addEventListener('click', () => setTab(button.dataset.tab));
-});
-document.querySelectorAll('[data-go]').forEach(button => {
-  button.addEventListener('click', () => setTab(button.dataset.go));
-});
-
-async function enter(session) {
-  user = session?.user || null;
-  show('auth', !user);
-  show('app', !!user);
-  if (!user) {
-    elder = null;
-    show('profileSetup', false);
-    show('dashboard', false);
-    return;
-  }
-
-  try {
-    const { error: profileError } = await db.from('profiles').upsert({
-      user_id: user.id,
-      display_name: user.email?.split('@')[0] || 'Member'
-    }, { onConflict:'user_id' });
-    if (profileError) throw profileError;
-
-    const { data, error } = await db.from('elder_profiles')
-      .select('*').order('created_at', { ascending:true });
-    if (error) throw error;
-
-    const profiles = data || [];
-    elder = profiles.find(profile => profile.created_by === user.id) || profiles[0] || null;
-    show('profileSetup', !elder);
-    show('dashboard', !!elder);
-
-    if (elder) {
-      $('greeting').textContent = 'Hello, ' + elder.display_name;
-      $('profileStatus').textContent = 'Care profile · ' + String(elder.preferred_language || 'en').toUpperCase();
-      await refresh();
-      setTab('overview');
+  function seedState() {
+    const today = startOfDay(now());
+    const steps = [2850, 3220, 3610, 3980, 4240, 4610, 4920];
+    const sleeps = [7.2, 7.0, 6.9, 7.1, 6.8, 6.7, 6.5];
+    const health = [];
+    for (let i = 6; i >= 0; i--) {
+      const day = new Date(today); day.setDate(day.getDate() - i); day.setHours(8, 0, 0, 0);
+      const index = 6 - i;
+      health.push({id:makeId('h'), metric:'steps', value:steps[index], unit:'steps', observedAt:iso(day), source:'Demo watch'});
+      const sleepAt = new Date(day); sleepAt.setHours(8, 15);
+      health.push({id:makeId('h'), metric:'sleep_hours', value:sleeps[index], unit:'hours', observedAt:iso(sleepAt), source:'Demo watch'});
     }
-  } catch (error) {
-    toast(errorText(error));
+    health.push({id:makeId('h'),metric:'resting_heart_rate',value:72,unit:'bpm',observedAt:iso(dateOffset(-1,8,30)),source:'Demo watch'});
+    health.push({id:makeId('h'),metric:'resting_heart_rate',value:74,unit:'bpm',observedAt:iso(dateOffset(0,8,30)),source:'Demo watch'});
+
+    const meds = [
+      {id:'med-a',name:'Medicine A',strength:'Sample dose A',time:'08:00',instructions:'Example note: after breakfast',active:true,lastReportedAt:iso(dateOffset(0,8,5))},
+      {id:'med-b',name:'Medicine B',strength:'Sample dose B',time:'13:00',instructions:'Example note: lunchtime routine',active:true,lastReportedAt:null},
+      {id:'med-c',name:'Medicine C',strength:'Sample dose C',time:'20:00',instructions:'Example note: evening routine',active:true,lastReportedAt:null}
+    ];
+    const appointments = [
+      {id:'apt-a',title:'Routine wellness visit',clinician:'Dr. Example',scheduledAt:iso(dateOffset(1,11,30)),status:'scheduled',note:'Fictional sample appointment'},
+      {id:'apt-b',title:'Follow-up consultation',clinician:'Community Clinic Demo',scheduledAt:iso(dateOffset(5,15,0)),status:'scheduled',note:'Bring the sample care summary'},
+      {id:'apt-c',title:'Previous check-in',clinician:'Dr. Example',scheduledAt:iso(dateOffset(-4,10,0)),status:'completed',note:'Demo history'}
+    ];
+    const devices = [
+      {id:'dev-a',name:'Asha demo watch',kind:'Smart watch',provider:'Demo wearable',status:'Simulated',lastSync:iso(dateOffset(0,8,30)),consent:true,reading:'Steps and sleep sample'},
+      {id:'dev-b',name:'Hall motion sensor',kind:'Motion sensor',provider:'Demo home hub',status:'Simulated',lastSync:iso(dateOffset(0,7,50)),consent:true,reading:'Motion event sample'},
+      {id:'dev-c',name:'Living room light',kind:'Smart light',provider:'Demo smart home',status:'Simulated',lastSync:null,consent:true,reading:'No live appliance control'}
+    ];
+    const members = [
+      {id:'mem-a',name:'Asha Rao',role:'Elder',initials:'AR',scope:'Owns this demo care profile'},
+      {id:'mem-b',name:'Meera Rao',role:'Family',initials:'MR',scope:'Read-only example access'},
+      {id:'mem-c',name:'Arjun Patel',role:'Caregiver',initials:'AP',scope:'Example care coordination access'}
+    ];
+    const doseReports = [
+      {id:makeId('dose'),medicationId:'med-a',at:iso(dateOffset(-5,8,5))},
+      {id:makeId('dose'),medicationId:'med-b',at:iso(dateOffset(-5,13,5))},
+      {id:makeId('dose'),medicationId:'med-c',at:iso(dateOffset(-4,20,5))},
+      {id:makeId('dose'),medicationId:'med-a',at:iso(dateOffset(-3,8,5))},
+      {id:makeId('dose'),medicationId:'med-b',at:iso(dateOffset(-2,13,5))},
+      {id:makeId('dose'),medicationId:'med-a',at:iso(dateOffset(-1,8,5))}
+    ];
+    const events = [
+      {id:makeId('ev'),title:'Morning routine reported',detail:'Medicine A · user-reported in demo',at:iso(dateOffset(0,8,5)),kind:'medication'},
+      {id:makeId('ev'),title:'Demo watch sample synced',detail:'Steps and sleep sample readings',at:iso(dateOffset(0,8,30)),kind:'device'},
+      {id:makeId('ev'),title:'Care circle checked in',detail:'Example shared-care activity',at:iso(dateOffset(-1,17,0)),kind:'care'}
+    ];
+    return {version:1,meds,health,appointments,devices,members,doseReports,events,invites:[],safetyEvents:[]};
   }
-}
 
-async function refresh() {
-  if (!elder) return;
-
-  const [medResult, healthResult, appointmentResult, deviceResult, membershipResult] =
-    await Promise.all([
-      db.from('medications').select('*').eq('elder_id', elder.id).order('created_at', { ascending:false }),
-      db.from('health_observations').select('*').eq('elder_id', elder.id).order('observed_at', { ascending:false }).limit(50),
-      db.from('appointments').select('*').eq('elder_id', elder.id).order('scheduled_at', { ascending:true }),
-      db.from('connected_devices').select('*').eq('elder_id', elder.id).order('created_at', { ascending:false }),
-      db.from('care_memberships').select('id,user_id,role,created_at').eq('elder_id', elder.id).order('created_at', { ascending:true })
-    ]);
-
-  for (const result of [medResult, healthResult, appointmentResult, deviceResult, membershipResult]) {
-    if (result.error) throw result.error;
-  }
-
-  meds = medResult.data || [];
-  health = healthResult.data || [];
-  appointments = appointmentResult.data || [];
-  devices = deviceResult.data || [];
-  memberships = membershipResult.data || [];
-  myRole = memberships.find(member => member.user_id === user.id)?.role || null;
-
-  invitations = [];
-  if (myRole === 'owner' || myRole === 'elder') {
-    const { data, error } = await db.from('care_invitations')
-      .select('id,invited_email,role,expires_at,accepted_at,revoked_at,created_at')
-      .eq('elder_id', elder.id).order('created_at', { ascending:false });
-    if (error) throw error;
-    invitations = data || [];
-  }
-
-  render();
-}
-
-function render() {
-  const canManageCare = ['owner','elder','caregiver'].includes(myRole);
-  show('medForm', canManageCare);
-  show('healthForm', canManageCare);
-  show('apptForm', canManageCare);
-  show('deviceForm', canManageCare);
-  const activeMeds = meds.filter(item => item.status === 'active');
-  const upcoming = appointments.filter(item =>
-    item.status === 'scheduled' && new Date(item.scheduled_at) >= new Date()
-  );
-
-  $('medCount').textContent = activeMeds.length;
-  $('apptCount').textContent = upcoming.length;
-
-  $('todayMeds').innerHTML = activeMeds.map(item => `
-    <div class="item">
-      <div><strong>${esc(item.name)}</strong><small>${esc(item.strength || '')} · ${esc(item.instructions || 'No instructions added')}</small></div>
-      ${canManageCare ? `<button class="btn light" data-taken="${esc(item.id)}">Log taken</button>` : ''}
-    </div>`).join('') || empty('No active medication records yet.');
-
-  $('medList').innerHTML = meds.map(item => `
-    <div class="item">
-      <div><strong>${esc(item.name)} <span class="pill">${esc(item.status)}</span></strong><small>${esc(item.strength || '')} · ${esc(item.instructions || '')}</small></div>
-      <span class="muted">${esc((item.schedule?.times || []).join(', '))}</span>
-    </div>`).join('') || empty('Add a medication record to begin.');
-
-  const healthRows = health.map(item => `
-    <div class="item">
-      <div><strong>${esc(String(item.metric).replaceAll('_',' '))}</strong><small>${dateText(item.observed_at)} · ${esc(item.source)}</small></div>
-      <strong>${esc(item.value)} ${esc(item.unit)}</strong>
-    </div>`).join('');
-  $('healthList').innerHTML = healthRows || empty('No health measurements recorded yet.');
-  $('recentHealth').innerHTML = health.slice(0,3).map(item => `
-    <div class="item">
-      <div><strong>${esc(String(item.metric).replaceAll('_',' '))}</strong><small>${dateText(item.observed_at)}</small></div>
-      <strong>${esc(item.value)} ${esc(item.unit)}</strong>
-    </div>`).join('') || empty('No health entries yet.');
-
-  $('apptList').innerHTML = appointments.map(item => `
-    <div class="item">
-      <div><strong>${esc(item.title)}</strong><small>${esc(item.clinician_name || 'Clinician not specified')} · ${dateText(item.scheduled_at)}</small></div>
-      <span class="pill">${esc(item.status)}</span>
-    </div>`).join('') || empty('No appointments added yet.');
-  $('nextAppts').innerHTML = upcoming.slice(0,3).map(item => `
-    <div class="item"><div><strong>${esc(item.title)}</strong><small>${dateText(item.scheduled_at)}</small></div></div>
-  `).join('') || empty('No upcoming appointments.');
-
-  $('deviceList').innerHTML = devices.map(item => `
-    <div class="item">
-      <div><strong>${esc(item.device_name)}</strong><small>${esc(item.provider)} · ${esc(item.device_kind.replaceAll('_',' '))}</small></div>
-      <span class="pill">${esc(item.connection_status)}</span>
-    </div>`).join('') || empty('No devices registered. Add one with the elder’s permission.');
-
-  renderCareCircle();
-
-  document.querySelectorAll('[data-taken]').forEach(button => {
-    button.addEventListener('click', () => logTaken(button.dataset.taken));
-  });
-}
-
-function renderCareCircle() {
-  $('membersList').innerHTML = memberships.map(member => {
-    const canRemove = member.role !== 'owner' &&
-      (member.user_id === user.id ||
-       ((myRole === 'owner' || myRole === 'elder') && member.role !== 'elder'));
-    const actionLabel = member.user_id === user.id ? 'Leave circle' : 'Remove access';
-    return `
-      <div class="item">
-        <div><strong>${member.user_id === user.id ? 'You' : 'Care-circle member'}</strong>
-          <small>Member ID · ${esc(member.user_id.slice(0,8))}…</small>
-        </div><div class="formrow"><span class="pill">${esc(member.role)}</span>
-        ${canRemove ? `<button class="btn ghost" data-remove-member="${esc(member.id)}">${actionLabel}</button>` : ''}</div>
-      </div>`;
-  }).join('') || empty('No care-circle members found.');
-
-  const canInvite = myRole === 'owner' || myRole === 'elder';
-  show('inviteForm', canInvite);
-  $('inviteList').innerHTML = canInvite
-    ? invitations.map(invitation => {
-        const state = invitation.accepted_at ? 'Accepted'
-          : invitation.revoked_at ? 'Revoked'
-          : new Date(invitation.expires_at) <= new Date() ? 'Expired'
-          : 'Pending';
-        const canRevoke = state === 'Pending';
-        return `<div class="item">
-          <div><strong>${esc(invitation.invited_email)}</strong>
-            <small>${esc(invitation.role)} · Expires ${dateText(invitation.expires_at)}</small>
-          </div>
-          <div class="formrow"><span class="pill">${state}</span>
-          ${canRevoke ? `<button class="btn ghost" data-revoke="${esc(invitation.id)}">Revoke</button>` : ''}</div>
-        </div>`;
-      }).join('') || empty('No invitations yet.')
-    : empty('Only the elder or profile owner can create and view invitations.');
-
-  document.querySelectorAll('[data-revoke]').forEach(button => {
-    button.addEventListener('click', () => revokeInvitation(button.dataset.revoke));
-  });
-  document.querySelectorAll('[data-remove-member]').forEach(button => {
-    button.addEventListener('click', () => removeCareMember(button.dataset.removeMember));
-  });
-}
-
-async function run(query) {
-  const { error } = await query;
-  if (error) throw error;
-  toast('Saved successfully.');
-  await refresh();
-}
-
-async function handleAcceptInvitation(code) {
-  const cleanCode = String(code || '').trim().toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(cleanCode)) {
-    toast('Enter the complete 64-character invitation code.');
-    return;
-  }
+  let state;
+  let memoryOnly = false;
   try {
-    const { data, error } = await db.rpc('accept_care_invitation', { p_invite_code:cleanCode });
-    if (error) throw error;
-    const accepted = data?.[0];
-    if (!accepted?.elder_id) throw new Error('The invitation could not be accepted.');
-    const { data: profile, error: profileError } = await db.from('elder_profiles')
-      .select('*').eq('id', accepted.elder_id).single();
-    if (profileError) throw profileError;
-    elder = profile;
-    show('profileSetup', false);
-    show('dashboard', true);
-    $('greeting').textContent = 'Hello, ' + elder.display_name;
-    $('profileStatus').textContent = 'Care profile · ' + String(elder.preferred_language || 'en').toUpperCase();
-    $('inviteCode').value = '';
-    if ($('inviteCodeSetup')) $('inviteCodeSetup').value = '';
-    await refresh();
-    setTab('care');
-    toast('Invitation accepted. You are now part of this care circle.');
-  } catch (error) {
-    toast(errorText(error));
+    const saved = localStorage.getItem(STORAGE_KEY);
+    state = saved ? JSON.parse(saved) : seedState();
+    if (!state || state.version !== 1) state = seedState();
+  } catch {
+    state = seedState();
+    memoryOnly = true;
   }
-}
 
-async function revokeInvitation(id) {
-  try {
-    const { data, error } = await db.rpc('revoke_care_invitation', { p_invitation_id:id });
-    if (error) throw error;
-    if (!data) throw new Error('This invitation could not be revoked.');
-    toast('Invitation revoked.');
-    await refresh();
-  } catch (error) {
-    toast(errorText(error));
+  function save() {
+    if (memoryOnly) return;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch { memoryOnly = true; toast('Browser storage is unavailable. Changes will last only until this tab closes.'); }
   }
-}
 
-async function removeCareMember(id) {
-  if (!window.confirm('Remove this person’s care-circle access?')) return;
-  try {
-    const { data, error } = await db.rpc('remove_care_member', { p_membership_id:id });
-    if (error) throw error;
-    if (!data) throw new Error('Access could not be removed.');
-    toast('Care-circle access updated.');
-    await refresh();
-  } catch (error) {
-    toast(errorText(error));
+  function toast(message) {
+    $('toast').textContent = message;
+    $('toast').classList.remove('hidden');
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => $('toast').classList.add('hidden'), 3200);
   }
-}
 
-$('signIn').onclick = async () => {
-  const email = $('email').value.trim();
-  const password = $('password').value;
-  const { error } = await db.auth.signInWithPassword({ email, password });
-  if (error) toast(errorText(error));
-};
-
-$('signUp').onclick = async () => {
-  if ($('password').value.length < 8) {
-    toast('Use a password with at least 8 characters.');
-    return;
-  }
-  const { error } = await db.auth.signUp({
-    email:$('email').value.trim(),
-    password:$('password').value
-  });
-  if (error) toast(errorText(error));
-  else toast('Account created. Check your email if confirmation is enabled.');
-};
-
-$('signOut').onclick = async () => {
-  const { error } = await db.auth.signOut();
-  if (error) toast(errorText(error));
-};
-
-$('profileForm').onsubmit = async event => {
-  event.preventDefault();
-  try {
-    const { data, error } = await db.from('elder_profiles').insert({
-      created_by:user.id,
-      display_name:$('elderName').value.trim(),
-      preferred_language:$('language').value
-    }).select().single();
-    if (error) throw error;
-    elder = data;
-    show('profileSetup', false);
-    show('dashboard', true);
-    $('greeting').textContent = 'Hello, ' + elder.display_name;
-    await refresh();
-    toast('Care profile created.');
-  } catch (error) {
-    toast(errorText(error));
-  }
-};
-
-$('inviteForm').onsubmit = async event => {
-  event.preventDefault();
-  if (!(myRole === 'owner' || myRole === 'elder')) {
-    toast('Only the elder or profile owner can invite members.');
-    return;
-  }
-  try {
-    const { data, error } = await db.rpc('create_care_invitation', {
-      p_elder_id:elder.id,
-      p_invited_email:$('inviteEmail').value.trim(),
-      p_role:$('inviteRole').value,
-      p_expires_in_hours:Number($('inviteExpiry').value)
+  function switchView(name) {
+    document.querySelectorAll('[data-tab]').forEach(button => {
+      button.classList.toggle('active', button.dataset.tab === name);
     });
-    if (error) throw error;
-    const invitation = data?.[0];
-    if (!invitation?.invite_code) throw new Error('Invitation created but no code was returned.');
-    $('inviteResult').innerHTML = `
-      <strong>Invitation code — shown only once</strong>
-      <code id="newInviteCode">${esc(invitation.invite_code)}</code>
-      <div class="formrow section"><button id="copyInviteCode" class="btn light" type="button">Copy code</button><span class="muted">Expires ${dateText(invitation.expires_at)}</span></div>`;
-    show('inviteResult', true);
-    $('copyInviteCode').onclick = async () => {
-      try { await navigator.clipboard.writeText(invitation.invite_code); toast('Code copied. Share it privately.'); }
-      catch { toast('Copy unavailable. Select and copy the code manually.'); }
+    document.querySelectorAll('.view').forEach(view => {
+      view.classList.toggle('active', view.id === 'view-' + name);
+    });
+  }
+
+  document.querySelectorAll('[data-tab]').forEach(button => {
+    button.addEventListener('click', () => switchView(button.dataset.tab));
+  });
+  document.querySelectorAll('[data-go]').forEach(button => {
+    button.addEventListener('click', () => switchView(button.dataset.go));
+  });
+
+  function todayReports() {
+    const start = startOfDay(now()).getTime();
+    return state.doseReports.filter(report => new Date(report.at).getTime() >= start);
+  }
+
+  function renderStats() {
+    const weekStart = startOfDay(now());
+    weekStart.setDate(weekStart.getDate() - 6);
+    const reports = state.doseReports.filter(report => new Date(report.at) >= weekStart);
+    const scheduled = Math.max(7, state.meds.filter(m => m.active).length * 7);
+    const rate = Math.min(100, Math.round((reports.length / scheduled) * 100));
+    $('doseRate').textContent = rate + '%';
+    $('medCount').textContent = state.meds.filter(m => m.active).length;
+    $('memberCount').textContent = state.members.length;
+    const next = state.appointments
+      .filter(a => a.status === 'scheduled' && new Date(a.scheduledAt) >= now())
+      .sort((a,b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))[0];
+    if (next) {
+      $('apptCount').textContent = clockLabel(next.scheduledAt);
+      $('apptNote').textContent = dateLabel(next.scheduledAt, false) + ' · sample';
+    } else {
+      $('apptCount').textContent = '—';
+      $('apptNote').textContent = 'No upcoming demo appointments';
+    }
+    $('todayLabel').textContent = now().toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'});
+  }
+
+  function renderMeds() {
+    const active = state.meds.filter(m => m.active).sort((a,b) => a.time.localeCompare(b.time));
+    const today = todayReports();
+    const row = med => {
+      const reportedToday = today.some(r => r.medicationId === med.id);
+      return '<div class="item"><div><strong>' + esc(med.name) + ' <span class="pill neutral">' + esc(med.time) + '</span></strong>' +
+        '<small>' + esc(med.strength || 'Sample label') + ' · ' + esc(med.instructions || 'No demo note') + '</small></div>' +
+        '<div class="item-actions">' + (reportedToday
+          ? '<span class="pill">Reported</span>'
+          : '<button class="btn light small" data-dose="' + esc(med.id) + '">Mark reported</button>') +
+        '</div></div>';
     };
-    event.target.reset();
-    await refresh();
-  } catch (error) {
-    toast(errorText(error));
+    $('todayMeds').innerHTML = active.length ? active.map(row).join('') : empty('No active demo medication records.');
+    $('medList').innerHTML = state.meds.length ? state.meds.map(med => {
+      const todayReported = today.some(r => r.medicationId === med.id);
+      return '<div class="item"><div><strong>' + esc(med.name) + ' <span class="pill ' + (med.active?'':'neutral') + '">' + (med.active?'Active demo record':'Archived') + '</span></strong>' +
+        '<small>' + esc(med.strength || 'Sample label') + ' · ' + esc(med.time) + ' · ' + esc(med.instructions || 'No note') + '</small></div>' +
+        '<div class="item-actions">' + (med.active
+          ? (todayReported ? '<span class="pill">Reported today</span>' : '<button class="btn light small" data-dose="' + esc(med.id) + '">Report dose</button>') +
+            '<button class="btn ghost small" data-archive="' + esc(med.id) + '">Archive</button>'
+          : '<button class="btn ghost small" data-restore="' + esc(med.id) + '">Restore</button>') + '</div></div>';
+    }).join('') : empty('Add a fictional medicine record to explore this screen.');
+    document.querySelectorAll('[data-dose]').forEach(button => button.addEventListener('click', () => reportDose(button.dataset.dose)));
+    document.querySelectorAll('[data-archive]').forEach(button => button.addEventListener('click', () => setMedicationActive(button.dataset.archive,false)));
+    document.querySelectorAll('[data-restore]').forEach(button => button.addEventListener('click', () => setMedicationActive(button.dataset.restore,true)));
   }
-};
 
-$('acceptInviteForm').onsubmit = event => {
-  event.preventDefault();
-  handleAcceptInvitation($('inviteCode').value);
-};
+  function reportDose(id) {
+    if (todayReports().some(report => report.medicationId === id)) return toast('This demo dose was already reported today.');
+    const med = state.meds.find(item => item.id === id);
+    if (!med || !med.active) return;
+    const at = iso(now());
+    state.doseReports.push({id:makeId('dose'),medicationId:id,at});
+    med.lastReportedAt = at;
+    state.events.unshift({id:makeId('ev'),title:'Dose reported in demo',detail:med.name + ' · self-reported, not independently verified',at,kind:'medication'});
+    save(); render(); toast('Demo dose report saved.');
+  }
 
-$('acceptInviteSetupForm').onsubmit = event => {
-  event.preventDefault();
-  handleAcceptInvitation($('inviteCodeSetup').value);
-};
+  function setMedicationActive(id, active) {
+    const med = state.meds.find(item => item.id === id);
+    if (!med) return;
+    med.active = active;
+    save(); render(); toast(active ? 'Demo medicine restored.' : 'Demo medicine archived.');
+  }
 
-$('medForm').onsubmit = async event => {
-  event.preventDefault();
-  try {
-    await run(db.from('medications').insert({
-      elder_id:elder.id,
-      name:$('medName').value.trim(),
-      strength:$('medStrength').value.trim() || null,
-      instructions:$('medInstructions').value.trim() || null,
-      schedule:{ times:[$('medTime').value] },
-      created_by:user.id
+  function renderHealth() {
+    const sorted = [...state.health].sort((a,b) => new Date(b.observedAt)-new Date(a.observedAt));
+    $('healthList').innerHTML = sorted.map(item =>
+      '<div class="item"><div><strong>' + esc(metricName(item.metric)) + '</strong><small>' +
+      dateLabel(item.observedAt) + ' · ' + esc(item.source || 'Manual demo entry') +
+      '</small></div><strong>' + esc(item.value) + ' ' + esc(item.unit) + '</strong></div>'
+    ).join('') || empty('No fictional health observations yet.');
+    renderTrends();
+  }
+
+  function metricName(metric) {
+    return ({
+      steps:'Daily steps',sleep_hours:'Sleep duration',resting_heart_rate:'Resting heart rate',
+      blood_pressure_systolic:'Blood pressure · systolic',blood_glucose:'Blood glucose'
+    })[metric] || String(metric).replaceAll('_',' ');
+  }
+
+  function unitFor(metric) {
+    return ({steps:'steps',sleep_hours:'hours',resting_heart_rate:'bpm',blood_pressure_systolic:'mmHg',blood_glucose:'sample units'})[metric] || 'units';
+  }
+
+  function latestTwo(metric) {
+    return state.health.filter(item => item.metric === metric)
+      .sort((a,b) => new Date(a.observedAt)-new Date(b.observedAt)).slice(-2);
+  }
+
+  function trendLabel(metric) {
+    const values = latestTwo(metric);
+    if (values.length < 2) return {text:'Need more entries',cls:'review',detail:'Add another dated reading to compare direction.'};
+    const first = Number(values[0].value), last = Number(values[1].value);
+    if (!Number.isFinite(first) || !Number.isFinite(last) || first === 0) return {text:'No comparison',cls:'review',detail:'A comparison is not available.'};
+    const diff = ((last-first)/Math.abs(first))*100;
+    const direction = diff > 1 ? 'Higher' : diff < -1 ? 'Lower' : 'Similar';
+    return {text:direction + ' · ' + (diff > 0 ? '+' : '') + diff.toFixed(0) + '%',cls:Math.abs(diff)>12?'review':'',detail:values[0].value+' → '+values[1].value+' '+unitFor(metric)};
+  }
+
+  function renderTrends() {
+    const metrics = ['steps','sleep_hours','resting_heart_rate'];
+    $('trendSummary').innerHTML = metrics.map(metric => {
+      const trend = trendLabel(metric);
+      const latest = latestTwo(metric).at(-1);
+      return '<div class="trend"><div><strong>' + (latest ? esc(latest.value)+' '+esc(latest.unit) : '—') +
+        '</strong><small>' + esc(metricName(metric)) + ' · ' + esc(trend.detail) + '</small></div><span class="trend-tag ' + trend.cls + '">' + esc(trend.text) + '</span></div>';
+    }).join('');
+    $('trendDetail').innerHTML = metrics.map(metric => {
+      const trend = trendLabel(metric);
+      const latest = latestTwo(metric).at(-1);
+      return '<div class="trend"><div><strong>' + (latest ? esc(latest.value)+' '+esc(latest.unit) : '—') +
+        '</strong><small>' + esc(metricName(metric)) + ' · ' + esc(trend.detail) +
+        '</small></div><span class="trend-tag ' + trend.cls + '">' + esc(trend.text) + '</span></div>';
+    }).join('');
+    const week = state.health.filter(item => item.metric === 'steps')
+      .sort((a,b) => new Date(a.observedAt)-new Date(b.observedAt)).slice(-7);
+    const max = Math.max(1,...week.map(item=>Number(item.value)||0));
+    $('activityBars').innerHTML = week.map(item => {
+      const width = Math.max(2,Math.round((Number(item.value)/max)*100));
+      return '<div class="barrow"><span>' + new Date(item.observedAt).toLocaleDateString([], {weekday:'short'}) +
+        '</span><div class="bartrack"><div class="barfill" style="width:' + width + '%"></div></div><strong>' +
+        esc(item.value.toLocaleString ? Number(item.value).toLocaleString() : item.value) + '</strong></div>';
+    }).join('') || empty('Add daily step observations to see a sample activity pattern.');
+  }
+
+  function renderAppointments() {
+    const sorted = [...state.appointments].sort((a,b) => new Date(a.scheduledAt)-new Date(b.scheduledAt));
+    $('apptList').innerHTML = sorted.map(item => {
+      const past = new Date(item.scheduledAt) < now();
+      return '<div class="item"><div><strong>' + esc(item.title) + '</strong><small>' +
+        esc(item.clinician || 'Clinician not specified') + ' · ' + dateLabel(item.scheduledAt) +
+        (item.note ? ' · ' + esc(item.note) : '') + '</small></div><div class="item-actions"><span class="pill ' +
+        (item.status==='completed'?'neutral':past?'amber':'') + '">' + esc(item.status) + '</span>' +
+        (item.status==='scheduled' ? '<button class="btn ghost small" data-complete-appt="' + esc(item.id) + '">Complete</button>' : '') +
+        '</div></div>';
+    }).join('') || empty('No demo appointments. Add one to see the workflow.');
+    const upcoming = sorted.filter(item => item.status==='scheduled' && new Date(item.scheduledAt)>=now()).slice(0,3);
+    $('nextAppts').innerHTML = upcoming.map(item =>
+      '<div class="item"><div><strong>' + esc(item.title) + '</strong><small>' + dateLabel(item.scheduledAt) + '</small></div><span class="pill neutral">Planned</span></div>'
+    ).join('') || empty('No upcoming sample appointments.');
+    document.querySelectorAll('[data-complete-appt]').forEach(button => button.addEventListener('click', () => {
+      const appointment = state.appointments.find(item=>item.id===button.dataset.completeAppt);
+      if (appointment) { appointment.status='completed'; addEvent('Appointment marked complete in demo',appointment.title,'care'); save(); render(); }
     }));
-    event.target.reset();
-    $('medTime').value = '09:00';
-  } catch (error) {
-    toast(errorText(error));
   }
-};
 
-async function logTaken(id) {
-  const medication = meds.find(item => item.id === id);
-  if (!medication) return;
-  try {
-    await run(db.from('dose_events').insert({
-      elder_id:elder.id,
-      medication_id:id,
-      scheduled_for:new Date().toISOString(),
-      status:'taken_reported',
-      reported_by:user.id,
-      note:'Self-reported by a care-circle member'
+  function renderDevices() {
+    $('deviceList').innerHTML = state.devices.map(device =>
+      '<div class="item"><div><strong>' + esc(device.name) + ' <span class="pill blue">Simulated</span></strong><small>' +
+      esc(device.kind) + ' · ' + esc(device.provider) + ' · ' +
+      (device.lastSync ? 'Last demo sync: '+dateLabel(device.lastSync) : 'Not synced in demo') +
+      '<br>' + esc(device.reading || 'No demo reading') + '</small></div>' +
+      '<button class="btn ghost small" data-device-sync="' + esc(device.id) + '">Sync demo</button></div>'
+    ).join('') || empty('No demo devices registered yet.');
+    $('safetyLog').innerHTML = state.safetyEvents.length ? state.safetyEvents.map(event =>
+      '<div class="item"><div><strong>' + esc(event.title) + '</strong><small>' + esc(event.detail) + ' · ' + dateLabel(event.at) + '</small></div><span class="pill amber">Simulated</span></div>'
+    ).join('') : empty('No simulated safety events yet. Try “Run safety alert demo”.');
+    document.querySelectorAll('[data-device-sync]').forEach(button => button.addEventListener('click',()=>syncDevice(button.dataset.deviceSync)));
+  }
+
+  function syncDevice(id) {
+    const device = state.devices.find(item=>item.id===id);
+    if (!device) return;
+    device.lastSync = iso(now());
+    device.reading = device.kind.toLowerCase().includes('watch')
+      ? 'Steps: 5,120 · sleep: 6.5 h (sample)'
+      : device.kind.toLowerCase().includes('light')
+        ? 'Light state: on (simulated)'
+        : 'Motion event: sample activity recorded';
+    if (device.kind.toLowerCase().includes('watch')) {
+      state.health.push({id:makeId('h'),metric:'steps',value:5120,unit:'steps',observedAt:device.lastSync,source:'Simulated watch sync'});
+    }
+    addEvent('Demo device synced',device.name+' · simulated values only','device');
+    save(); render(); toast('Sample device sync complete. No real device was contacted.');
+  }
+
+  function renderCare() {
+    $('membersList').innerHTML = state.members.map(member =>
+      '<div class="member"><span class="member-avatar">' + esc(member.initials || member.name.slice(0,2).toUpperCase()) +
+      '</span><div class="member-info"><strong>' + esc(member.name) + '</strong><small>' + esc(member.scope) +
+      '</small></div><span class="pill ' + (member.role==='Elder'?'':'neutral') + '">' + esc(member.role) + '</span></div>'
+    ).join('') || empty('No sample care-circle members.');
+    $('inviteList').innerHTML = state.invites.length ? state.invites.map(invite =>
+      '<div class="item"><div><strong>' + esc(invite.email) + '</strong><small>' + esc(invite.role) +
+      ' · Expires ' + dateLabel(invite.expiresAt) + '</small></div><div class="item-actions"><span class="pill amber">Demo pending</span>' +
+      '<button class="btn ghost small" data-copy-invite="' + esc(invite.id) + '">Copy code</button></div></div>'
+    ).join('') : empty('No demo invitations created yet.');
+    document.querySelectorAll('[data-copy-invite]').forEach(button => button.addEventListener('click', () => {
+      const invite = state.invites.find(item=>item.id===button.dataset.copyInvite);
+      if (!invite) return;
+      copyText(invite.code);
     }));
-  } catch (error) {
-    toast(errorText(error));
   }
-}
 
-$('healthForm').onsubmit = async event => {
-  event.preventDefault();
-  try {
-    await run(db.from('health_observations').insert({
-      elder_id:elder.id,
-      metric:$('metric').value,
-      value:Number($('healthValue').value),
-      unit:$('healthUnit').value.trim(),
-      observed_at:new Date().toISOString(),
-      source:$('healthSource').value,
-      recorded_by:user.id
-    }));
-    event.target.reset();
-  } catch (error) {
-    toast(errorText(error));
+  async function copyText(value) {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast('Demo code copied. It is not a real login credential.');
+    } catch {
+      $('inviteResult').innerHTML = '<strong>Demo code</strong><div class="codebox">'+esc(value)+'</div><small>Select and copy this example code manually. It does not grant real access.</small>';
+      $('inviteResult').classList.remove('hidden');
+    }
   }
-};
 
-$('apptForm').onsubmit = async event => {
-  event.preventDefault();
-  try {
-    await run(db.from('appointments').insert({
-      elder_id:elder.id,
-      title:$('apptTitle').value.trim(),
-      clinician_name:$('clinician').value.trim() || null,
-      scheduled_at:new Date($('apptDate').value).toISOString(),
-      created_by:user.id
-    }));
-    event.target.reset();
-  } catch (error) {
-    toast(errorText(error));
+  function addEvent(title, detail, kind) {
+    state.events.unshift({id:makeId('ev'),title,detail,at:iso(now()),kind});
+    state.events = state.events.slice(0,30);
   }
-};
 
-$('deviceForm').onsubmit = async event => {
-  event.preventDefault();
-  if (!$('deviceConsent').checked) return toast('Consent is required before registering a device.');
-  try {
-    await run(db.from('connected_devices').insert({
-      elder_id:elder.id,
-      device_name:$('deviceName').value.trim(),
-      device_kind:$('deviceKind').value,
-      provider:$('provider').value.trim(),
-      connection_status:'pending',
-      consent_granted_by:user.id,
-      capabilities:[]
-    }));
-    event.target.reset();
-  } catch (error) {
-    toast(errorText(error));
+  function renderTimeline() {
+    $('timeline').innerHTML = state.events.slice(0,5).map(event =>
+      '<div class="timeline-item"><span class="timeline-dot"></span><div><strong>' + esc(event.title) +
+      '</strong><small>' + esc(event.detail) + ' · ' + dateLabel(event.at) + '</small></div></div>'
+    ).join('') || empty('No recent demo events.');
   }
-};
 
-db.auth.onAuthStateChange((_event, session) => {
-  queueMicrotask(() => enter(session));
-});
-const { data:{ session } } = await db.auth.getSession();
-await enter(session);
+  function render() {
+    renderStats();
+    renderMeds();
+    renderHealth();
+    renderAppointments();
+    renderDevices();
+    renderCare();
+    renderTimeline();
+  }
+
+  $('medForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const name = $('medName').value.trim();
+    const time = $('medTime').value;
+    if (!name || !time) return toast('Enter a medicine label and sample time.');
+    state.meds.push({
+      id:makeId('med'),name,strength:$('medStrength').value.trim()||'Sample label',
+      time,instructions:$('medInstructions').value.trim()||'Demo entry only',
+      active:true,lastReportedAt:null
+    });
+    addEvent('Demo medication record added',name,'medication');
+    event.target.reset(); $('medTime').value='09:00';
+    save(); render(); toast('Sample medication added.');
+  });
+
+  $('healthForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const metric = $('metric').value;
+    const value = Number($('healthValue').value);
+    const unit = $('healthUnit').value.trim();
+    if (!Number.isFinite(value) || !unit) return toast('Enter a sample value and unit.');
+    const at = iso(now());
+    state.health.push({id:makeId('h'),metric,value,unit,observedAt:at,source:'Manual demo entry'});
+    addEvent('Health journal sample added',metricName(metric)+' · '+value+' '+unit,'health');
+    event.target.reset(); $('healthUnit').value=unitFor($('metric').value);
+    save(); render(); toast('Sample observation saved.');
+  });
+  $('metric').addEventListener('change',()=>{$('healthUnit').value=unitFor($('metric').value);});
+  $('healthUnit').value=unitFor($('metric').value);
+
+  $('apptForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const title = $('apptTitle').value.trim();
+    const clinician = $('clinician').value.trim();
+    const when = $('apptDate').value;
+    if (!title || !when || new Date(when) < now()) return toast('Choose an appointment time in the future.');
+    state.appointments.push({id:makeId('apt'),title,clinician,scheduledAt:iso(new Date(when)),status:'scheduled',note:'Created in demo workspace'});
+    addEvent('Demo appointment added',title,'care');
+    event.target.reset(); save(); render(); toast('Sample appointment added.');
+  });
+
+  $('deviceForm').addEventListener('submit', event => {
+    event.preventDefault();
+    if (!$('deviceConsent').checked) return toast('Confirm permission for this demo profile first.');
+    const name=$('deviceName').value.trim(), kind=$('deviceKind').value, provider=$('provider').value.trim();
+    if (!name || !provider) return toast('Enter a demo device name and provider.');
+    state.devices.push({id:makeId('dev'),name,kind,provider,status:'Simulated',lastSync:null,consent:true,reading:'Registered in demo only'});
+    addEvent('Demo device registered',name+' · simulated, not connected','device');
+    event.target.reset(); save(); render(); toast('Demo device added. No real device was connected.');
+  });
+
+  $('inviteForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const email=$('inviteEmail').value.trim().toLowerCase();
+    if (!email || !email.includes('@')) return toast('Enter an example email address.');
+    const bytes = new Uint8Array(8);
+    if (window.crypto?.getRandomValues) crypto.getRandomValues(bytes);
+    else for (let i=0;i<bytes.length;i++) bytes[i]=Math.floor(Math.random()*256);
+    const code = Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();
+    const hours=Number($('inviteExpiry').value);
+    const invite={id:makeId('inv'),email,role:$('inviteRole').value,code,expiresAt:iso(Date.now()+hours*60*60*1000)};
+    state.invites.unshift(invite);
+    $('inviteResult').innerHTML='<strong>Demo invitation code · not a real access credential</strong><div class="codebox section">'+esc(code)+'</div><small>This code is only a visual example and cannot grant anyone access.</small>';
+    $('inviteResult').classList.remove('hidden');
+    addEvent('Demo invitation generated',email+' · '+invite.role,'care');
+    event.target.reset(); save(); render(); $('inviteResult').classList.remove('hidden');
+    toast('Example invitation generated.');
+  });
+
+  $('simulateSync').addEventListener('click', () => {
+    const watch = state.devices.find(d=>d.kind.toLowerCase().includes('watch'));
+    if (watch) syncDevice(watch.id);
+    else {
+      state.devices.push({id:makeId('dev'),name:'Temporary demo watch',kind:'Smart watch',provider:'VayoLoop simulator',status:'Simulated',lastSync:iso(now()),consent:true,reading:'Steps: 5,120 · sleep: 6.5 h (sample)'});
+      state.health.push({id:makeId('h'),metric:'steps',value:5120,unit:'steps',observedAt:iso(now()),source:'Simulated watch sync'});
+      addEvent('Demo watch sync complete','Steps and sleep example values received','device');
+      save(); render(); toast('Sample watch data added. No real device was contacted.');
+    }
+  });
+
+  $('simulateAlert').addEventListener('click', () => {
+    const at=iso(now());
+    const event={id:makeId('safety'),title:'Possible fall alert · simulated',detail:'Demo flow: verify with the elder → notify designated care-circle members → coordinate support. No real alert or call was sent.',at};
+    state.safetyEvents.unshift(event);
+    addEvent(event.title,'Simulation only · no emergency service contacted','safety');
+    save(); render(); toast('Safety scenario simulated. No real contacts were notified.');
+  });
+
+  $('resetDemo').addEventListener('click', () => {
+    if (!window.confirm('Reset all demo changes in this browser and restore the original fictional sample profile?')) return;
+    state=seedState(); save(); render(); switchView('overview'); toast('Demo workspace reset.');
+  });
+
+  $('largeText').addEventListener('click', () => {
+    document.body.classList.toggle('large-text');
+    const enabled=document.body.classList.contains('large-text');
+    $('largeText').textContent=enabled?'A− Text':'A+ Text';
+    toast(enabled?'Larger text enabled.':'Standard text size restored.');
+  });
+
+  const greetHour=now().getHours();
+  $('greeting').textContent=(greetHour<12?'Good morning':greetHour<17?'Good afternoon':'Good evening')+', Asha';
+  if (!localStorage.getItem(STORAGE_KEY) && !memoryOnly) save();
+  render();
+})();
