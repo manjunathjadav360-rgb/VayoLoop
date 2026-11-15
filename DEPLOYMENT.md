@@ -31,7 +31,7 @@ This is the older HTML/JavaScript preview, not the new Streamlit app.
 
 ## Current safety scope
 
-- All records are fictional and session-scoped.
+- Use fictional records for all hackathon testing. After Secrets are configured, authenticated health observations and prescription records persist in Supabase; other demo workflows remain session-scoped.
 - Emergency detections, family notifications, contact acknowledgements and device events are simulations only.
 - No automated 112 call, dispatch, SMS, WhatsApp, email or push delivery is implemented.
 - Browser voice alerts depend on browser permissions and the page being open.
@@ -46,10 +46,10 @@ The database project and schema are provisioned separately from the Streamlit ap
 2. Open **App settings → Secrets**.
 3. Add the following TOML, replacing the placeholder with the VayoLoop project's **publishable** API key:
 
-\`\`\`toml
+```toml
 SUPABASE_URL = "https://vhugnytmbjktbhlspgyx.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_..."
-\`\`\`
+```
 
 4. Save and reboot the app.
 5. In the app sidebar, create an account or sign in. If email confirmation is enabled, confirm the email before signing in.
