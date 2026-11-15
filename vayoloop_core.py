@@ -169,8 +169,11 @@ def analyse_health_trends(
     for record in records or []:
         metric = str(record.get("metric") or "Observation").strip() or "Observation"
         unit = str(record.get("unit") or "").strip()
+        raw_value = record.get("value")
+        if isinstance(raw_value, bool):
+            continue
         try:
-            value = float(record.get("value"))
+            value = float(raw_value)
             observed = datetime.fromisoformat(
                 str(record.get("observed_at") or "").replace("Z", "+00:00")
             )
