@@ -45,6 +45,7 @@ def seed_demo_state(now: datetime | None = None) -> dict:
     ])
     return {
         "meds": meds,
+        "prescriptions": [],
         "health": health,
         "appointments": [
             {"id": "apt-a", "title": "Routine wellness visit", "provider": "Example family clinic", "when": at(1, 11, 30), "status": "Scheduled", "note": "Fictional demo appointment"},
