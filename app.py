@@ -23,6 +23,17 @@ from vayoloop_core import (
     seed_demo_state,
 )
 
+from vayoloop_db import (
+    create_supabase_client,
+    delete_prescription_record,
+    download_prescription_file,
+    ensure_elder_profile,
+    get_current_user,
+    list_health_observations,
+    list_prescription_records,
+    save_health_observation,
+    save_prescription_record,
+)
 from care_passport import build_care_passport, render_care_passport_html
 
 st.set_page_config(
@@ -272,6 +283,105 @@ def navigate_to_section(section_name: str) -> None:
     st.session_state.workspace_section = section_name
 
 
+
+
+def supabase_credentials() -> tuple[str | None, str | None]:
+    try:
+        secrets = st.secrets
+        project_url = str(secrets.get("SUPABASE_URL", "")).strip()
+        publishable_key = str(
+            secrets.get("SUPABASE_PUBLISHABLE_KEY", "") or secrets.get("SUPABASE_KEY", "")
+        ).strip()
+    except Exception:
+        return None, None
+    return (project_url or None, publishable_key or None)
+
+
+def render_account_controls() -> tuple[object | None, dict | None, bool]:
+    project_url, publishable_key = supabase_credentials()
+    configured = bool(project_url and publishable_key)
+    st.markdown("**PRIVATE RECORDS ACCOUNT**")
+
+    if not configured:
+        st.caption("Database keys are not configured yet. This app is currently in session-only demo mode.")
+        return None, None, False
+
+    client = st.session_state.get("vayoloop_db_client")
+    user = st.session_state.get("vayoloop_db_user")
+
+    if client is None or user is None:
+        with st.expander("Sign in or create a private account", expanded=False):
+            sign_in_tab, sign_up_tab = st.tabs(["Sign in", "Create account"])
+            with sign_in_tab:
+                with st.form("vayoloop_sign_in_form"):
+                    login_email = st.text_input("Email", key="vayoloop_login_email")
+                    login_password = st.text_input("Password", type="password", key="vayoloop_login_password")
+                    do_sign_in = st.form_submit_button("Sign in", type="primary", use_container_width=True)
+                if do_sign_in:
+                    if not login_email.strip() or not login_password:
+                        st.error("Enter your email and password.")
+                    else:
+                        try:
+                            client = create_supabase_client(project_url, publishable_key)
+                            client.auth.sign_in_with_password({
+                                "email": login_email.strip(),
+                                "password": login_password,
+                            })
+                            user = get_current_user(client)
+                            st.session_state.vayoloop_db_client = client
+                            st.session_state.vayoloop_db_user = user
+                            st.success("Signed in. Your private care records are loading.")
+                            st.rerun()
+                        except Exception as exc:
+                            st.error(f"Sign-in failed: {str(exc)[:180]}")
+
+            with sign_up_tab:
+                with st.form("vayoloop_sign_up_form"):
+                    signup_email = st.text_input("Email address", key="vayoloop_signup_email")
+                    signup_password = st.text_input("Create password", type="password", key="vayoloop_signup_password")
+                    signup_confirm = st.text_input("Confirm password", type="password", key="vayoloop_signup_confirm")
+                    do_sign_up = st.form_submit_button("Create account", type="primary", use_container_width=True)
+                if do_sign_up:
+                    if not signup_email.strip() or len(signup_password) < 8:
+                        st.error("Enter an email and a password with at least 8 characters.")
+                    elif signup_password != signup_confirm:
+                        st.error("The passwords do not match.")
+                    else:
+                        try:
+                            client = create_supabase_client(project_url, publishable_key)
+                            response = client.auth.sign_up({
+                                "email": signup_email.strip(),
+                                "password": signup_password,
+                            })
+                            session = getattr(response, "session", None)
+                            if session is not None:
+                                user = get_current_user(client)
+                                st.session_state.vayoloop_db_client = client
+                                st.session_state.vayoloop_db_user = user
+                                st.success("Account created and signed in.")
+                                st.rerun()
+                            else:
+                                st.info("Account created. Check your email to confirm it, then sign in here.")
+                        except Exception as exc:
+                            st.error(f"Account creation failed: {str(exc)[:180]}")
+        st.caption("Until you sign in, saved readings and uploaded documents remain temporary demo data.")
+        return None, None, True
+
+    st.caption(f"Signed in · {user.get('email') or 'Private account'}")
+    if st.button("Sign out", key="vayoloop_sign_out", use_container_width=True):
+        try:
+            client.auth.sign_out()
+        except Exception:
+            pass
+        for key in ("vayoloop_db_client", "vayoloop_db_user", "vayoloop_elder_id", "vayoloop_profile_name"):
+            st.session_state.pop(key, None)
+        st.rerun()
+    return client, user, True
+
+def navigate_to_section(section_name: str) -> None:
+    st.session_state.workspace_section = section_name
+
+
 if "workspace" not in st.session_state:
     st.session_state.workspace = seed_demo_state()
 if "role" not in st.session_state:
@@ -283,7 +393,15 @@ if "large_text" not in st.session_state:
 
 inject_styles()
 
+cloud_client = None
+cloud_user = None
+cloud_credentials_configured = False
+cloud_active = False
+cloud_profile = None
+
 with st.sidebar:
+    cloud_client, cloud_user, cloud_credentials_configured = render_account_controls()
+    st.markdown("---")
     st.markdown(
         "<div style='display:flex;align-items:center;gap:10px;margin:6px 0 20px'><div style='background:#245b49;color:white;border-radius:11px;width:40px;height:40px;display:grid;place-items:center;font:800 20px Manrope'>V</div><div><div style='font:800 19px Manrope;color:#20352e;letter-spacing:-.05em'>VayoLoop</div><div style='font-size:9px;letter-spacing:.16em;color:#78847a;font-weight:800'>CARE BEYOND REMINDERS</div></div></div>",
         unsafe_allow_html=True,
@@ -300,28 +418,60 @@ with st.sidebar:
         key="workspace_section",
     )
     st.markdown("---")
-    st.caption("Synthetic profile · Asha Rao")
+    st.caption("Private records · signed-in account" if cloud_active else "Synthetic profile · Asha Rao")
     if st.button("Reset demo workspace", use_container_width=True):
         st.session_state.workspace = seed_demo_state()
         st.session_state.pop("current_emergency_id", None)
         st.rerun()
-    st.caption("This prototype stores demo changes in this browser session only.")
+    st.caption("Only health readings and prescriptions persist when signed in; the remaining modules are demo-only.")
 
 if st.session_state.large_text:
     st.markdown("<style>html{font-size:115%}p,label,button{font-size:1.03rem!important}</style>", unsafe_allow_html=True)
 
+
+workspace = st.session_state.workspace
+if cloud_client is not None and cloud_user is not None:
+    try:
+        cloud_profile = ensure_elder_profile(cloud_client, cloud_user["id"])
+        st.session_state.vayoloop_elder_id = cloud_profile["id"]
+        st.session_state.vayoloop_profile_name = cloud_profile.get("display_name") or "My care profile"
+        workspace["health"] = list_health_observations(cloud_client, cloud_profile["id"])
+        workspace["prescriptions"] = list_prescription_records(cloud_client, cloud_profile["id"])
+        cloud_active = True
+    except Exception as exc:
+        workspace["health"] = []
+        workspace["prescriptions"] = []
+        st.error(f"Private records could not be loaded. They are not being shown as saved: {str(exc)[:180]}")
+        cloud_active = False
+
+
+if cloud_active:
+    st.markdown(
+        "<div class='vl-demo'><span class='vl-dot'></span><strong>PRIVATE RECORDS CONNECTED</strong><span>Health readings and prescriptions load from your secured account. Other sections still use fictional demo data.</span></div>",
+        unsafe_allow_html=True,
+    )
+elif cloud_credentials_configured:
+    st.markdown(
+        "<div class='vl-demo'><span class='vl-dot'></span><strong>DEMO MODE</strong><span>Sign in from the sidebar to save health readings and prescriptions to your private account. Do not enter real records before sign-in.</span></div>",
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        "<div class='vl-demo'><span class='vl-dot'></span><strong>DEMO MODE</strong><span>All people, readings and events are fictional. No real alerts, calls or device connections are made.</span></div>",
+        unsafe_allow_html=True,
+    )
+
+hero_greeting = "Hi, welcome back." if cloud_active else "Hi Asha, welcome back."
 st.markdown(
-    """
-    <div class="vl-demo"><span class="vl-dot"></span><strong>DEMO MODE</strong><span>All people, readings and events are fictional. No real alerts, calls or device connections are made.</span></div>
+    f"""
     <div class="vl-hero">
-      <div><div class="kicker">INDIA-FIRST · ELDER-LED CARE</div><h1>Hi Asha, welcome back.</h1><p>Your day, your routines and your people — in one calm place.</p></div>
+      <div><div class="kicker">INDIA-FIRST · ELDER-LED CARE</div><h1>{html.escape(hero_greeting)}</h1><p>Your day, your routines and your people — in one calm place.</p></div>
       <div class="hero-mark">V</div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-workspace = st.session_state.workspace
 today = india_now().date()
 today_reports = [r for r in workspace["dose_reports"] if r["reported_at"][:10] == today.isoformat()]
 upcoming_appointments = [a for a in workspace["appointments"] if a["status"] == "Scheduled"]
@@ -457,9 +607,13 @@ elif section == "Medicines":
 
 elif section == "Prescription library":
     st.subheader("Prescription library")
-    st.caption("Keep a copy of the original prescription with its source and date. This demo stores uploads only in the active app session; use fictional documents in this public prototype.")
+    st.caption(
+        "Original files and their details are stored in your private account."
+        if cloud_active else
+        "This demo keeps uploaded documents only in the active app session. Sign in to use private storage."
+    )
     st.markdown(
-        "<div class='vl-note'>Upload and organise the original document here. This version does not perform OCR, verify authenticity, check medicine-disease suitability or replace a pharmacist/doctor review. Do not upload real private medical records to this public demo.</div>",
+        "<div class='vl-note'>VayoLoop keeps the original document and its metadata. It does not run OCR, verify authenticity or decide whether a medicine is suitable for a condition. A doctor or pharmacist must review clinical questions. Do not use this hackathon prototype for real patient records.</div>",
         unsafe_allow_html=True,
     )
     with st.container(border=True):
@@ -482,10 +636,32 @@ elif section == "Prescription library":
                 st.error("Choose a PDF or image first.")
             else:
                 file_bytes = prescription_file.getvalue()
+                safe_name = prescription_file.name.replace("/", "_").replace(chr(92), "_").replace(chr(0), "")
                 if len(file_bytes) > 10 * 1024 * 1024:
                     st.error("This file is larger than 10 MB. Choose a smaller copy.")
+                elif cloud_active:
+                    try:
+                        saved_record = save_prescription_record(
+                            cloud_client,
+                            cloud_profile["id"],
+                            cloud_user["id"],
+                            file_bytes,
+                            prescription_file.name,
+                            prescription_file.type or "",
+                            document_label.strip() or safe_name,
+                            prescribed_on.isoformat(),
+                            clinic,
+                            clinician,
+                            condition_as_written,
+                            prescription_notes,
+                        )
+                        workspace.setdefault("prescriptions", []).insert(0, saved_record)
+                        add_event("Prescription document saved", safe_name)
+                        st.success("Prescription and original file saved to your private account.")
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(f"Secure upload failed: {str(exc)[:180]}")
                 else:
-                    safe_name = prescription_file.name.replace("/", "_").replace(chr(92), "_").replace(chr(0), "")
                     workspace.setdefault("prescriptions", []).insert(0, {
                         "id": f"rx-{int(datetime.now().timestamp() * 1000)}",
                         "document_label": document_label.strip() or safe_name,
@@ -501,7 +677,7 @@ elif section == "Prescription library":
                         "uploaded_at": india_now().isoformat(),
                     })
                     add_event("Prescription document saved", safe_name)
-                    st.success("Prescription file added to this session. You can download the original below.")
+                    st.success("Demo file added to this session only. Sign in for private, persistent storage.")
                     st.rerun()
 
     saved_prescriptions = workspace.setdefault("prescriptions", [])
@@ -526,22 +702,59 @@ elif section == "Prescription library":
             if prescription.get("notes"):
                 st.write(prescription["notes"])
             d1, d2 = st.columns([1, 1])
-            d1.download_button(
-                "Download original file",
-                data=base64.b64decode(prescription["file_data_b64"]),
-                file_name=prescription["file_name"],
-                mime=prescription["file_type"],
-                key=f"rx_download_{prescription['id']}",
-                use_container_width=True,
-            )
-            if d2.button("Remove from this session", key=f"rx_remove_{prescription['id']}", use_container_width=True):
-                workspace["prescriptions"] = [item for item in saved_prescriptions if item["id"] != prescription["id"]]
-                add_event("Prescription document removed", prescription["file_name"])
-                st.rerun()
+            if prescription.get("is_cloud"):
+                cache_key = f"vayoloop_rx_file_{prescription['id']}"
+                if cache_key in st.session_state:
+                    d1.download_button(
+                        "Download original file",
+                        data=st.session_state[cache_key],
+                        file_name=prescription["file_name"],
+                        mime=prescription["file_type"],
+                        key=f"rx_cloud_download_{prescription['id']}",
+                        use_container_width=True,
+                    )
+                elif d1.button("Prepare secure download", key=f"rx_prepare_{prescription['id']}", use_container_width=True):
+                    try:
+                        st.session_state[cache_key] = download_prescription_file(
+                            cloud_client, prescription["document_path"]
+                        )
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(f"Download failed: {str(exc)[:160]}")
+            else:
+                d1.download_button(
+                    "Download original file",
+                    data=base64.b64decode(prescription["file_data_b64"]),
+                    file_name=prescription["file_name"],
+                    mime=prescription["file_type"],
+                    key=f"rx_download_{prescription['id']}",
+                    use_container_width=True,
+                )
+
+            remove_label = "Delete saved document" if prescription.get("is_cloud") else "Remove from this session"
+            if d2.button(remove_label, key=f"rx_remove_{prescription['id']}", use_container_width=True):
+                try:
+                    if prescription.get("is_cloud"):
+                        delete_prescription_record(
+                            cloud_client, cloud_profile["id"], prescription["id"], prescription["document_path"]
+                        )
+                        st.session_state.pop(f"vayoloop_rx_file_{prescription['id']}", None)
+                        st.success("Prescription record and original file deleted from private storage.")
+                    else:
+                        st.success("Prescription removed from this demo session.")
+                    workspace["prescriptions"] = [item for item in saved_prescriptions if item["id"] != prescription["id"]]
+                    add_event("Prescription document removed", prescription["file_name"])
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Could not remove the document: {str(exc)[:180]}")
 
 elif section == "Health journal":
     st.subheader("Health progress journal")
-    st.caption("Changes are compared with this profile's previous recorded values. Trends are not diagnoses, risk scores or treatment advice.")
+    st.caption(
+        "Your readings are stored in your private account and reload when you sign in."
+        if cloud_active else
+        "Demo readings are session-only. Sign in from the sidebar to keep health observations between visits."
+    )
     left, right = st.columns([1.2, 0.8], gap="large")
     with left:
         with st.container(border=True):
@@ -563,7 +776,11 @@ elif section == "Health journal":
                     use_container_width=True,
                     height=320,
                 )
-                st.caption(f"{len(workspace['health'])} observations saved in this session.")
+                st.caption(
+                    f"{len(workspace['health'])} observations in your private account."
+                    if cloud_active else
+                    f"{len(workspace['health'])} observations saved in this session."
+                )
                 export_col1, export_col2 = st.columns(2)
                 export_col1.download_button(
                     "Download health history CSV",
@@ -598,15 +815,38 @@ elif section == "Health journal":
                 value = st.number_input("Recorded value", value=0.0, step=0.1, format="%.2f")
                 unit_default = {"Daily steps":"steps","Sleep duration":"hours","Resting heart rate":"bpm","Blood pressure — systolic":"mmHg","Blood pressure — diastolic":"mmHg","Blood glucose":"mg/dL","Weight":"kg"}.get(metric, "")
                 unit = st.text_input("Unit", value=unit_default)
-                source = st.selectbox("Source", ["Entered by family", "Entered by elder", "Compatible device (demo)", "Clinic report (demo)"])
+                source_options = (
+                    ["Entered by family", "Entered by elder", "Wearable / device record", "Clinic report"]
+                    if cloud_active else
+                    ["Entered by family", "Entered by elder", "Compatible device (demo)", "Clinic report (demo)"]
+                )
+                source = st.selectbox("Source", source_options)
                 reading_date = st.date_input("Reading date", value=today, key="health_reading_date")
                 reading_time = st.time_input("Reading time", value=india_now().time().replace(second=0, microsecond=0), step=timedelta(minutes=5), key="health_reading_time")
                 if st.form_submit_button("Save observation", type="primary", use_container_width=True):
                     observed_at = datetime.combine(reading_date, reading_time, tzinfo=INDIA_TZ).isoformat(timespec="seconds")
-                    workspace["health"].append({"id": f"health-{int(datetime.now().timestamp() * 1000)}", "metric": metric, "value": value, "unit": unit, "observed_at": observed_at, "source": source})
-                    add_event("Health observation added", f"{metric} · user-entered demo observation")
-                    st.success("Observation saved.")
-                    st.rerun()
+                    try:
+                        if cloud_active:
+                            save_health_observation(
+                                cloud_client,
+                                cloud_profile["id"],
+                                cloud_user["id"],
+                                metric,
+                                float(value),
+                                unit,
+                                observed_at,
+                                source,
+                            )
+                            workspace["health"] = list_health_observations(cloud_client, cloud_profile["id"])
+                            success_message = "Observation saved to your private account."
+                        else:
+                            workspace["health"].append({"id": f"health-{int(datetime.now().timestamp() * 1000)}", "metric": metric, "value": value, "unit": unit, "observed_at": observed_at, "source": source})
+                            success_message = "Observation saved in this demo session only."
+                        add_event("Health observation added", f"{metric} · {source}")
+                        st.success(success_message)
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(f"Observation could not be saved: {str(exc)[:180]}")
         st.markdown("<div class='vl-note'>A change in a number is not automatically good or bad. VayoLoop shows the recorded values and encourages the family to discuss concerns with a qualified clinician.</div>", unsafe_allow_html=True)
 
 elif section == "Appointments":
@@ -855,8 +1095,20 @@ elif section == "Local support":
 
 elif section == "Care Passport":
     st.subheader("Care Passport")
-    st.caption("A portable, date-stamped handoff view that brings the care circle's key records together. This demo uses fictional, session-only data.")
-    passport = build_care_passport(workspace, profile_name="Asha Rao")
+    st.caption(
+        "Health observations and prescription records are private account data; other sections remain synthetic demo data."
+        if cloud_active else
+        "A portable, date-stamped handoff view built from fictional, session-only demo data."
+    )
+    passport = build_care_passport(
+        workspace,
+        profile_name=(st.session_state.get("vayoloop_profile_name", "My care profile") if cloud_active else "Asha Rao"),
+    )
+    if cloud_active:
+        passport["notice"] = (
+            "Mixed hackathon handoff: health observations and prescription metadata are read from the signed-in "
+            "private account. Other modules may contain fictional demo data. This is not a clinical record or diagnosis."
+        )
     p1, p2, p3, p4, p5 = st.columns(5)
     p1.metric("Active medicines", passport["counts"]["active_medicines"])
     p2.metric("Prescription files", passport["counts"]["prescription_documents"])
