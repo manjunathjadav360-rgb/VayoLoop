@@ -8,7 +8,6 @@ import os
 from datetime import datetime, time, timedelta
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from vayoloop_core import (
     INDIA_TZ,
@@ -361,7 +360,7 @@ with st.sidebar:
     )
     st.markdown("---")
     st.caption("Shared demo profile · Asha Rao")
-    if st.button("Reset local preview", use_container_width=True):
+    if st.button("Reset local preview", width="stretch"):
         st.session_state.workspace = seed_demo_state()
         st.session_state.pop("current_emergency_id", None)
         st.rerun()
@@ -424,14 +423,14 @@ if section == "Home":
     with st.expander("Guided demo · follow one family care journey", expanded=False):
         st.caption("A short walkthrough for judges: record a routine, notice a change, coordinate support, test the safety flow, then prepare a care handoff.")
         g1, g2, g3 = st.columns(3)
-        g1.button("1 · Medicine routine", use_container_width=True, on_click=navigate_to_section, args=("Medicines",))
-        g2.button("2 · Health journal", use_container_width=True, on_click=navigate_to_section, args=("Health journal",))
-        g3.button("3 · Family coordination", use_container_width=True, on_click=navigate_to_section, args=("Family circle",))
+        g1.button("1 · Medicine routine", width="stretch", on_click=navigate_to_section, args=("Medicines",))
+        g2.button("2 · Health journal", width="stretch", on_click=navigate_to_section, args=("Health journal",))
+        g3.button("3 · Family coordination", width="stretch", on_click=navigate_to_section, args=("Family circle",))
         g4, g5 = st.columns(2)
-        g4.button("4 · Safety response", use_container_width=True, on_click=navigate_to_section, args=("Emergency centre",))
-        g5.button("5 · Build Care Passport", use_container_width=True, on_click=navigate_to_section, args=("Care Passport",))
+        g4.button("4 · Safety response", width="stretch", on_click=navigate_to_section, args=("Emergency centre",))
+        g5.button("5 · Build Care Passport", width="stretch", on_click=navigate_to_section, args=("Care Passport",))
     st.subheader("Your care, at a glance")
-    components.html(voice_companion_html(workspace["meds"], workspace["appointments"], VOICE_LANGUAGES[language_label]), height=75, scrolling=False)
+    st.iframe(voice_companion_html(workspace["meds"], workspace["appointments"], VOICE_LANGUAGES[language_label]), height=75, alt="VayoLoop voice reminders and status")
     left, right = st.columns([1.25, 0.75], gap="large")
     with left:
         with st.container(border=True):
@@ -468,7 +467,7 @@ if section == "Home":
                 hydration = st.selectbox("Water check-in", ["Not asked yet", "Had water", "Would like a reminder"])
                 mood = st.selectbox("How are you feeling?", ["Not answered", "Doing okay", "Would like a family call", "Would like support"])
                 note = st.text_input("Optional note")
-                submitted = st.form_submit_button("Save check-in", type="primary", use_container_width=True)
+                submitted = st.form_submit_button("Save check-in", type="primary", width="stretch")
             if submitted:
                 workspace["checkins"].insert(0, {"at": india_now().isoformat(), "meals": meals, "hydration": hydration, "mood": mood, "note": note})
                 add_event("Daily check-in completed", "A wellbeing check-in was recorded in the demo.")
@@ -478,7 +477,7 @@ if section == "Home":
             st.markdown(f"<div class='vl-pill'>{len(workspace['contacts'])} trusted contacts in sample network</div>", unsafe_allow_html=True)
             st.write("Primary contact:", workspace["contacts"][0]["name"] if workspace["contacts"] else "Not configured")
             st.write("National emergency number in India: **112**")
-            st.link_button("Open emergency centre", "https://112.gov.in/", use_container_width=True)
+            st.link_button("Open emergency centre", "https://112.gov.in/", width="stretch")
     with st.container(border=True):
         st.markdown("**Recent care activity**")
         for event in workspace["events"][:5]:
@@ -520,11 +519,11 @@ elif section == "Medicines":
                     else:
                         st.caption(f"Sample supply record: {med['remaining_units']} units · update manually.")
                 with b:
-                    if st.button("Report as taken", key=f"report_{med['id']}", disabled=state == "Reported today" or not med.get("active", True), use_container_width=True):
+                    if st.button("Report as taken", key=f"report_{med['id']}", disabled=state == "Reported today" or not med.get("active", True), width="stretch"):
                         workspace["dose_reports"].append(record_dose(med["id"]))
                         add_event("Dose self-reported", f"{med['name']} · entered by demo user")
                         st.rerun()
-                    if st.button("Mark inactive", key=f"inactive_{med['id']}", use_container_width=True, disabled=not med.get("active", True)):
+                    if st.button("Mark inactive", key=f"inactive_{med['id']}", width="stretch", disabled=not med.get("active", True)):
                         med["active"] = False
                         add_event("Medicine record set inactive", f"{med['name']} · demo record only")
                         st.rerun()
@@ -559,7 +558,7 @@ elif section == "Medicines":
                 )
                 st.caption("This is a recordkeeping link only. It does not verify clinical suitability or authorise a prescription change.")
                 stock = st.number_input("Approximate supply units", min_value=0, max_value=365, value=14)
-                if st.form_submit_button("Add medicine record", type="primary", use_container_width=True):
+                if st.form_submit_button("Add medicine record", type="primary", width="stretch"):
                     if not name.strip():
                         st.error("Enter a medicine label.")
                     else:
@@ -603,7 +602,7 @@ elif section == "Prescription library":
             clinician = st.text_input("Doctor / prescriber (optional)")
             condition_as_written = st.text_input("Condition / reason (only if written on the document)")
             prescription_notes = st.text_area("Notes for the care circle", placeholder="For example: bring the original to the next appointment")
-            save_prescription = st.form_submit_button("Save prescription document", type="primary", use_container_width=True)
+            save_prescription = st.form_submit_button("Save prescription document", type="primary", width="stretch")
         if save_prescription:
             if prescription_file is None:
                 st.error("Choose a PDF or image first.")
@@ -682,9 +681,9 @@ elif section == "Prescription library":
                         file_name=prescription["file_name"],
                         mime=prescription["file_type"],
                         key=f"rx_cloud_download_{prescription['id']}",
-                        use_container_width=True,
+                        width="stretch",
                     )
-                elif d1.button("Prepare demo download", key=f"rx_prepare_{prescription['id']}", use_container_width=True):
+                elif d1.button("Prepare demo download", key=f"rx_prepare_{prescription['id']}", width="stretch"):
                     try:
                         st.session_state[cache_key] = download_prescription_file(
                             cloud_client, prescription["document_path"]
@@ -699,11 +698,11 @@ elif section == "Prescription library":
                     file_name=prescription["file_name"],
                     mime=prescription["file_type"],
                     key=f"rx_download_{prescription['id']}",
-                    use_container_width=True,
+                    width="stretch",
                 )
 
             remove_label = "Delete demo document" if prescription.get("is_cloud") else "Remove from this session"
-            if d2.button(remove_label, key=f"rx_remove_{prescription['id']}", use_container_width=True):
+            if d2.button(remove_label, key=f"rx_remove_{prescription['id']}", width="stretch"):
                 try:
                     if prescription.get("is_cloud"):
                         delete_prescription_record(
@@ -744,7 +743,7 @@ elif section == "Health journal":
                         for item in sorted(workspace["health"], key=lambda x: x["observed_at"], reverse=True)
                     ],
                     hide_index=True,
-                    use_container_width=True,
+                    width="stretch",
                     height=320,
                 )
                 st.caption(
@@ -758,14 +757,14 @@ elif section == "Health journal":
                     data=health_records_csv(workspace["health"]),
                     file_name=f"vayoloop-health-history-{today.isoformat()}.csv",
                     mime="text/csv",
-                    use_container_width=True,
+                    width="stretch",
                 )
                 export_col2.download_button(
                     "Download health history JSON",
                     data=json.dumps(sorted(workspace["health"], key=lambda item: item["observed_at"]), ensure_ascii=False, indent=2),
                     file_name=f"vayoloop-health-history-{today.isoformat()}.json",
                     mime="application/json",
-                    use_container_width=True,
+                    width="stretch",
                 )
         with st.container(border=True):
             st.markdown("**Health trend analysis**")
@@ -820,7 +819,7 @@ elif section == "Health journal":
                     x="Recorded at",
                     y="Value",
                     height=230,
-                    use_container_width=True,
+                    width="stretch",
                 )
                 st.caption(
                     f"{selected_trend['count']} records · {selected_trend['freshness']} · "
@@ -843,7 +842,7 @@ elif section == "Health journal":
                         "Records": item["count"],
                         "Data freshness": item["freshness"],
                     })
-                st.dataframe(summary_rows, hide_index=True, use_container_width=True)
+                st.dataframe(summary_rows, hide_index=True, width="stretch")
                 st.caption(
                     "Rolling averages compare the latest 3 entries with the preceding 3 entries "
                     "for the same observation and unit. More history improves context; no universal "
@@ -865,7 +864,7 @@ elif section == "Health journal":
                 source = st.selectbox("Source", source_options)
                 reading_date = st.date_input("Reading date", value=today, key="health_reading_date")
                 reading_time = st.time_input("Reading time", value=india_now().time().replace(second=0, microsecond=0), step=timedelta(minutes=5), key="health_reading_time")
-                if st.form_submit_button("Save observation", type="primary", use_container_width=True):
+                if st.form_submit_button("Save observation", type="primary", width="stretch"):
                     observed_at = datetime.combine(reading_date, reading_time, tzinfo=INDIA_TZ).isoformat(timespec="seconds")
                     try:
                         if cloud_active:
@@ -931,7 +930,7 @@ elif section == "Health journal":
                             for item in import_rows[:100]
                         ],
                         hide_index=True,
-                        use_container_width=True,
+                        width="stretch",
                     )
                     if len(import_rows) > 100:
                         st.caption("Preview limited to the first 100 rows; all validated rows will be imported.")
@@ -939,7 +938,7 @@ elif section == "Health journal":
                         f"Import {len(import_rows)} new observation(s)",
                         key="import_wearable_csv",
                         type="primary",
-                        use_container_width=True,
+                        width="stretch",
                     ):
                         try:
                             if cloud_active:
@@ -996,7 +995,7 @@ elif section == "Appointments":
                 visit_date = st.date_input("Date", value=today + timedelta(days=2), min_value=today)
                 visit_time = st.time_input("Time", value=time(10, 0), step=timedelta(minutes=5))
                 note = st.text_input("Bring / remember", placeholder="Reports, prescription, questions")
-                if st.form_submit_button("Add appointment", type="primary", use_container_width=True):
+                if st.form_submit_button("Add appointment", type="primary", width="stretch"):
                     if not title.strip():
                         st.error("Enter an appointment name.")
                     else:
@@ -1039,7 +1038,7 @@ elif section == "Family circle":
                 contact_name = st.text_input("Name")
                 relationship = st.text_input("Relationship", placeholder="Daughter, son, neighbour...")
                 priority = st.selectbox("Escalation order", ["Primary contact", "Backup contact", "Nearby helper"])
-                if st.form_submit_button("Add to demo network", type="primary", use_container_width=True):
+                if st.form_submit_button("Add to demo network", type="primary", width="stretch"):
                     if not contact_name.strip():
                         st.error("Enter a name.")
                     else:
@@ -1054,7 +1053,7 @@ elif section == "Family circle":
                 assignee = st.selectbox("Assigned to", [c["name"] for c in workspace["contacts"]] or ["Unassigned"])
                 task_date = st.date_input("Date", value=today)
                 task_time = st.time_input("Time", value=time(19, 0), key="task_time")
-                if st.form_submit_button("Add care task", use_container_width=True):
+                if st.form_submit_button("Add care task", width="stretch"):
                     if task_title.strip():
                         when = datetime.combine(task_date, task_time, tzinfo=INDIA_TZ)
                         workspace["tasks"].append({"id": f"task-{int(datetime.now().timestamp())}", "title": task_title.strip(), "assignee": assignee, "due": when.isoformat(), "status": "Planned"})
@@ -1071,13 +1070,13 @@ elif section == "Emergency centre":
         with st.container(border=True):
             st.markdown("**Test the response workflow**")
             st.caption("Use these controls to demonstrate the product logic with fictional people.")
-            if st.button("Simulate possible fall signal", use_container_width=True):
+            if st.button("Simulate possible fall signal", width="stretch"):
                 event = create_emergency_event("Possible fall signal", workspace["contacts"])
                 workspace["emergency_events"].insert(0, event)
                 st.session_state.current_emergency_id = event["id"]
                 add_event("Possible fall signal · demo", "A simulated event is waiting for confirmation.")
                 st.rerun()
-            if st.button("Manual SOS · simulate immediate family alert", type="primary", use_container_width=True):
+            if st.button("Manual SOS · simulate immediate family alert", type="primary", width="stretch"):
                 event = create_emergency_event("Manual SOS", workspace["contacts"])
                 workspace["emergency_events"].insert(0, event)
                 st.session_state.current_emergency_id = event["id"]
@@ -1086,7 +1085,7 @@ elif section == "Emergency centre":
             st.markdown("---")
             st.markdown("**India emergency access**")
             st.markdown("For a real emergency, use the national emergency number **112**. VayoLoop's demo cannot place calls or dispatch responders.")
-            st.link_button("Open 112 emergency portal", "https://112.gov.in/", use_container_width=True)
+            st.link_button("Open 112 emergency portal", "https://112.gov.in/", width="stretch")
             st.markdown("[Call 112 from a phone](tel:112)")
     with b:
         with st.container(border=True):
@@ -1104,12 +1103,12 @@ elif section == "Emergency centre":
             if event["status"] == "Awaiting person confirmation":
                 st.warning("A possible event needs a response. In a real deployment, the device signal alone must not be treated as a confirmed fall.")
                 c1, c2 = st.columns(2)
-                if c1.button("Person responds: I'm okay", type="primary", use_container_width=True):
+                if c1.button("Person responds: I'm okay", type="primary", width="stretch"):
                     updated = close_emergency_event(event, safe=True)
                     update_emergency_event(updated)
                     add_event("Safety check closed", "Person confirmed okay in the demo flow.")
                     st.rerun()
-                if c2.button("No response · simulate escalation", use_container_width=True):
+                if c2.button("No response · simulate escalation", width="stretch"):
                     update_emergency_event(escalate_emergency(event))
                     add_event("Emergency escalation simulated", "Family contact alerts queued in demo only.")
                     st.rerun()
@@ -1126,7 +1125,7 @@ elif section == "Emergency centre":
                             update_emergency_event(updated)
                             add_event("Family alert acknowledged · demo", f"{contact_update['name']} acknowledged.")
                             st.rerun()
-                if st.button("Close emergency test", use_container_width=True):
+                if st.button("Close emergency test", width="stretch"):
                     update_emergency_event(close_emergency_event(event))
                     st.success("Demo event closed.")
                     st.rerun()
@@ -1153,7 +1152,7 @@ elif section == "Connected living":
             "Open Health Journal wearable import",
             on_click=navigate_to_section,
             args=("Health journal",),
-            use_container_width=True,
+            width="stretch",
         )
     left, right = st.columns([1.2, 0.8], gap="large")
     with left:
@@ -1165,7 +1164,7 @@ elif section == "Connected living":
                 c1.caption(f"{device['provider']} · Last sync: {fmt_datetime(device['last_sync'])}")
                 c2.markdown("<span class='vl-pill'>SIMULATED</span>", unsafe_allow_html=True)
                 st.divider()
-            if st.button("Simulate device sync", type="primary", use_container_width=True):
+            if st.button("Simulate device sync", type="primary", width="stretch"):
                 stamp = india_now().isoformat()
                 for device in workspace["devices"]:
                     device["last_sync"] = stamp
@@ -1173,7 +1172,7 @@ elif section == "Connected living":
                 add_event("Device sync simulated", "Connected device sample timestamps updated.")
                 st.success("Sample sync recorded. No physical device was contacted.")
                 st.rerun()
-            if st.button("Simulate home safety sensor event", use_container_width=True):
+            if st.button("Simulate home safety sensor event", width="stretch"):
                 event = create_emergency_event("Home sensor activity · simulated", workspace["contacts"])
                 workspace["emergency_events"].insert(0, event)
                 st.session_state.current_emergency_id = event["id"]
@@ -1187,7 +1186,7 @@ elif section == "Connected living":
                 kind = st.selectbox("Device type", ["Smartwatch", "Phone health platform", "Motion sensor", "Door sensor", "Smoke detector", "Gas detector", "Smart speaker", "Other"])
                 provider = st.text_input("Brand / platform")
                 consent = st.checkbox("I have permission to include this device in the sample profile.")
-                if st.form_submit_button("Add device record", type="primary", use_container_width=True):
+                if st.form_submit_button("Add device record", type="primary", width="stretch"):
                     if not device_name.strip() or not consent:
                         st.error("Enter a device name and confirm permission.")
                     else:
@@ -1253,7 +1252,7 @@ elif section == "Care Passport":
                 for item in handoff_checks
             ],
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             height=260,
         )
         review_area_count = sum(item["status"] == "Needs review" for item in handoff_checks)
@@ -1379,7 +1378,7 @@ elif section == "Care Passport":
             mime="text/html",
             disabled=not export_allowed,
             type="primary",
-            use_container_width=True,
+            width="stretch",
         )
         e2.download_button(
             "Download JSON data backup",
@@ -1387,7 +1386,7 @@ elif section == "Care Passport":
             file_name=f"vayoloop-care-data-{file_date}.json",
             mime="application/json",
             disabled=not export_allowed,
-            use_container_width=True,
+            width="stretch",
         )
         st.caption("The HTML file can be opened in a browser and printed or saved as PDF. Both downloads are generated locally from this demo session.")
 
