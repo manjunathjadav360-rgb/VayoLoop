@@ -89,12 +89,17 @@ class CarePassportTests(unittest.TestCase):
         checks = {item["area"]: item for item in analyse_handoff_completeness(self.workspace, self.now)}
         self.assertEqual(checks["Appointments"]["status"], "Needs review")
 
-    def test_print_html_escapes_user_content_and_has_print_styles(self):
-        self.workspace["contacts"][0]["name"] = "<script>alert(1)</script>"
+    def test_print_html_escapes_untrusted_values_across_handoff_sections(self):
+        payload = '<script>alert("untrusted")</script>'
+        self.workspace["contacts"][0]["name"] = payload
+        self.workspace["appointments"][0]["provider"] = payload
+        self.workspace["tasks"][0]["assignee"] = payload
+        self.workspace["devices"][0]["name"] = payload
+        self.workspace["health"][0]["source"] = payload
         snapshot = build_care_passport(self.workspace, generated_at=self.now)
         rendered = render_care_passport_html(snapshot)
-        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", rendered)
-        self.assertNotIn("<script>alert(1)</script>", rendered)
+        self.assertIn("&lt;script&gt;alert(&quot;untrusted&quot;)&lt;/script&gt;", rendered)
+        self.assertNotIn(payload, rendered)
         self.assertIn("@media print", rendered)
         self.assertIn("Asia/Kolkata", rendered)
 
