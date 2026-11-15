@@ -1,6 +1,7 @@
 import unittest
 
 from vayoloop_db import (
+    DEMO_WORKSPACE_ID,
     detect_prescription_mime,
     map_health_record,
     map_prescription_record,
@@ -9,6 +10,9 @@ from vayoloop_db import (
 
 
 class VayoLoopDatabaseMappingTests(unittest.TestCase):
+    def test_demo_workspace_is_a_fixed_synthetic_workspace(self):
+        self.assertEqual(DEMO_WORKSPACE_ID, "00000000-0000-4000-8000-000000000001")
+
     def test_health_row_is_mapped_for_journal(self):
         mapped = map_health_record({
             "id": "health-1",
@@ -23,19 +27,19 @@ class VayoLoopDatabaseMappingTests(unittest.TestCase):
         self.assertEqual(mapped["value"], 122.5)
         self.assertEqual(mapped["unit"], "mmHg")
 
-    def test_prescription_row_is_marked_as_private_cloud_record(self):
+    def test_prescription_row_is_shared_demo_record(self):
         mapped = map_prescription_record({
             "id": "rx-1",
             "title": "Clinic visit",
             "original_file_name": "visit.pdf",
-            "document_path": "elder-id/file.pdf",
+            "document_path": f"{DEMO_WORKSPACE_ID}/file.pdf",
             "file_size_bytes": 1200,
             "file_content_type": "application/pdf",
             "created_at": "2026-11-15T08:30:00+05:30",
         })
         self.assertTrue(mapped["is_cloud"])
         self.assertEqual(mapped["file_name"], "visit.pdf")
-        self.assertIn("privately", mapped["storage_note"])
+        self.assertIn("shared demo", mapped["storage_note"])
 
     def test_filename_is_sanitised(self):
         self.assertEqual(sanitise_filename("../../my rx.pdf"), "my_rx.pdf")
