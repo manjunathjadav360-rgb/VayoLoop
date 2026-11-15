@@ -79,6 +79,16 @@ class CarePassportTests(unittest.TestCase):
         self.assertIn("Source prescription", rendered)
         self.assertIn("November clinic prescription", rendered)
 
+    def test_handoff_display_does_not_guess_timezone_for_naive_timestamps(self):
+        self.workspace["appointments"][0]["when"] = "2026-11-16T11:30:00"
+        snapshot = build_care_passport(self.workspace, generated_at=self.now)
+        self.assertEqual(
+            snapshot["appointments"][0]["when_display"],
+            "Time zone missing or invalid · review source",
+        )
+        checks = {item["area"]: item for item in analyse_handoff_completeness(self.workspace, self.now)}
+        self.assertEqual(checks["Appointments"]["status"], "Needs review")
+
     def test_print_html_escapes_user_content_and_has_print_styles(self):
         self.workspace["contacts"][0]["name"] = "<script>alert(1)</script>"
         snapshot = build_care_passport(self.workspace, generated_at=self.now)
