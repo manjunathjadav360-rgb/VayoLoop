@@ -178,7 +178,8 @@ function render() {
 function renderCareCircle() {
   $('membersList').innerHTML = memberships.map(member => {
     const canRemove = member.role !== 'owner' &&
-      ((myRole === 'owner' || myRole === 'elder') || member.user_id === user.id);
+      (member.user_id === user.id ||
+       ((myRole === 'owner' || myRole === 'elder') && member.role !== 'elder'));
     const actionLabel = member.user_id === user.id ? 'Leave circle' : 'Remove access';
     return `
       <div class="item">
