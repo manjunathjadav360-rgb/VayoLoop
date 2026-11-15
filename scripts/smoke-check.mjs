@@ -91,7 +91,7 @@ function contrastRatio(foreground, background) {
 assert.match(html, /--muted:#5f6d64/, 'Static preview body copy must use the accessible muted token');
 assert.match(html, /--amber:#79531e/, 'Static preview warning text must use the accessible amber token');
 assert.match(html, /color:#65756b/, 'Static preview placeholders must remain legible');
-assert.match(streamlit, /--vl-muted:#5f6d64/, 'Streamlit copy must use the accessible muted token');
+assert.match(streamlit, /--vl-muted:#594747/, 'Streamlit copy must use the accessible muted token');
 assert.ok(streamlit.includes('[data-testid="stMetricLabel"] { color:#5f6d64;'), 'Streamlit metric labels must use accessible contrast');
 assert.ok(streamlit.includes('.vl-small { color:#5f6d64;'), 'Streamlit small text must use accessible contrast');
 assert.ok(contrastRatio('#5f6d64', '#fffefa') >= 4.5, 'Muted text on white cards must meet WCAG AA normal-text contrast');

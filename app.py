@@ -74,13 +74,47 @@ def inject_styles() -> None:
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
-        :root { --vl-ink:#20352e; --vl-muted:#5f6d64; --vl-paper:#f5f2e9; --vl-green:#245b49; --vl-green2:#326e58; --vl-line:#e7e4da; --vl-card:#fffefa; --vl-soft:#eaf0e8; --vl-amber:#f7efdf; --vl-red:#f7e9e5; }
+        :root { --vl-ink:#302424; --vl-muted:#594747; --vl-paper:#BC8F8F; --vl-rose-panel:#D8B8B8; --vl-silver:#C0C0C0; --vl-silver-hover:#AFAFAF; --vl-green:#245b49; --vl-green2:#326e58; --vl-line:#d8c2c2; --vl-card:#fffefa; --vl-soft:#f0e4e4; --vl-amber:#f7efdf; --vl-red:#f7e9e5; }
         html, body, [class*="css"] { font-family:'DM Sans',sans-serif; }
         .stApp { background:var(--vl-paper); color:var(--vl-ink); }
-        [data-testid="stHeader"] { background:rgba(245,242,233,.88); }
-        [data-testid="stSidebar"] { background:#eeeae0; border-right:1px solid #dfded3; }
-        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { color:#52645a; }
+        [data-testid="stHeader"] { background:rgba(188,143,143,.92); }
+        [data-testid="stSidebar"] { background:var(--vl-rose-panel); border-right:1px solid #b88f8f; }
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { color:#493838; }
         [data-testid="stSidebar"] .stRadio label { font-weight:600; padding:3px 0; }
+        .stButton > button,
+        .stDownloadButton > button,
+        .stFormSubmitButton > button,
+        .stLinkButton > a,
+        [data-testid="stBaseButton-primary"],
+        [data-testid="stBaseButton-secondary"],
+        #voiceEnable {
+            background:var(--vl-silver)!important;
+            color:#302424!important;
+            border:1px solid #969696!important;
+            border-radius:8px;
+            font-weight:700;
+            min-height:2.55rem;
+            box-shadow:0 1px 2px rgba(48,36,36,.10);
+        }
+        .stButton > button:hover,
+        .stDownloadButton > button:hover,
+        .stFormSubmitButton > button:hover,
+        .stLinkButton > a:hover,
+        [data-testid="stBaseButton-primary"]:hover,
+        [data-testid="stBaseButton-secondary"]:hover,
+        #voiceEnable:hover {
+            background:var(--vl-silver-hover)!important;
+            border-color:#858585!important;
+            color:#241b1b!important;
+        }
+        .stButton > button:focus-visible,
+        .stDownloadButton > button:focus-visible,
+        .stFormSubmitButton > button:focus-visible,
+        .stLinkButton > a:focus-visible,
+        #voiceEnable:focus-visible {
+            outline:3px solid #654b4b!important;
+            outline-offset:2px;
+        }
         h1,h2,h3 { font-family:'Manrope',sans-serif; color:var(--vl-ink); letter-spacing:-.035em; }
         h1 { font-weight:800; }
         h2 { font-size:1.28rem; font-weight:750; }
@@ -108,8 +142,6 @@ def inject_styles() -> None:
         .vl-danger { border-left-color:#ad5548; background:#f8efea; color:#75443e; }
         .vl-small { color:#5f6d64; font-size:.7rem; }
         .stButton > button, .stLinkButton > a { border-radius:8px; font-weight:700; min-height:2.55rem; }
-        .stButton > button[kind="primary"] { background:var(--vl-green); border-color:var(--vl-green); }
-        .stButton > button[kind="primary"]:hover { background:var(--vl-green2); border-color:var(--vl-green2); }
         .stTextInput input, .stNumberInput input, .stDateInput input, .stTimeInput input, .stSelectbox div[data-baseweb="select"] { border-radius:8px; }
         div[data-testid="stExpander"] { border-color:var(--vl-line); border-radius:10px; background:var(--vl-card); }
         hr { border-color:var(--vl-line); }
