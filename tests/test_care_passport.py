@@ -106,12 +106,12 @@ class CarePassportTests(unittest.TestCase):
         self.workspace["health"][0]["observed_at"] = "2026-11-15T08:30:00"
 
         checks = {item["area"]: item for item in analyse_handoff_completeness(self.workspace)}
-        self.assertEqual(checks["Medication records"]["status"], "Needs details")
+        self.assertEqual(checks["Medication records"]["status"], "Needs review")
         self.assertEqual(checks["Medication records"]["review_items"], 2)
         self.assertIn("1 point to missing documents", checks["Medication records"]["details"])
-        self.assertEqual(checks["Appointments"]["status"], "Needs details")
-        self.assertEqual(checks["Trusted contacts"]["status"], "Needs details")
-        self.assertEqual(checks["Health observations"]["status"], "Needs details")
+        self.assertEqual(checks["Appointments"]["status"], "Needs review")
+        self.assertEqual(checks["Trusted contacts"]["status"], "Needs review")
+        self.assertEqual(checks["Health observations"]["status"], "Needs review")
 
     def test_handoff_review_is_read_only_and_handles_an_empty_workspace(self):
         import copy

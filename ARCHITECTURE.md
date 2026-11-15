@@ -26,7 +26,7 @@ flowchart TD
 | `vayoloop_core.py` | Pure medication-status, event-transition and health-trend logic | Health trends are numerical descriptions, not clinical interpretations |
 | `vayoloop_db.py` | Supabase client, record mapping, validation, prescription upload/download/delete | Publishable key only; fixed demo workspace; strict file-object paths |
 | `vayoloop_security.py` | Escaping for HTML fragments and JSON placed inside scripts | Untrusted values must be encoded for their output context |
-| `care_passport.py` | Read-only snapshot, print-ready export and handoff data audit | Escaped output; administrative completeness only, never a clinical assessment |
+| `care_passport.py` | Read-only snapshot, print-ready export and handoff data audit | Escaped output; administrative and temporal consistency only, never a clinical assessment |
 | `tests/` | Domain, persistence mapping, export, security and page-render regression tests | No real patient data or external device is needed in CI |
 
 ## Data and persistence
