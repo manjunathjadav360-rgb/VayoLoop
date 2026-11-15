@@ -63,6 +63,7 @@ Only health observations and prescription records currently persist. Medicines, 
 - **Connected living:** sample wearable and home-sensor register, last-sync visibility and simulated device events.
 - **Local care directory:** add the family's own clinics, hospitals, pharmacies and home-care contacts. It starts empty rather than inventing local providers.
 - **Care Passport:** assemble medication records, self-reported dose history, health observations, appointments, wellbeing check-ins, family tasks, trusted contacts and device status into a print-friendly handoff; export HTML or a structured JSON backup after an explicit sharing acknowledgement.
+- **Care handoff review:** run a pre-export administrative completeness check across medicines, prescription file references, health observations, appointments, trusted contacts and family tasks. It flags missing fields and broken document links without judging clinical accuracy or medicine suitability.
 - **Guided demo:** a five-step path from medication routine through health journal, family coordination and safety simulation to the Care Passport.
 - **India-aware emergency information:** 112 is presented as the national emergency number; the demo does not dial it or contact emergency services.
 

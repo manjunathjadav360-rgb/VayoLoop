@@ -273,3 +273,172 @@ footer{{color:var(--muted);font-size:11px;text-align:center;padding:15px}}
 {section_html}
 <footer>VayoLoop · Synthetic demo export · This document does not replace the original prescription or advice from a qualified clinician.</footer>
 </main></body></html>"""
+
+
+def analyse_handoff_completeness(workspace: dict[str, Any]) -> list[dict[str, Any]]:
+    """Check administrative handoff completeness without assessing clinical suitability."""
+    from math import isfinite
+
+    def has_text(value: Any) -> bool:
+        if value is None:
+            return False
+        text = str(value).strip()
+        return bool(text) and text.lower() not in {
+            "not entered", "not recorded", "not specified", "not set", "unknown", "—"
+        }
+
+    def has_aware_timestamp(value: Any) -> bool:
+        try:
+            parsed = datetime.fromisoformat(str(value or "").replace("Z", "+00:00"))
+        except (TypeError, ValueError, OverflowError):
+            return False
+        return parsed.tzinfo is not None and parsed.utcoffset() is not None
+
+    def make_check(
+        area: str,
+        records: list[dict[str, Any]],
+        review_items: int,
+        details: str,
+    ) -> dict[str, Any]:
+        status = (
+            "No records" if not records
+            else "Needs details" if review_items
+            else "Ready for review"
+        )
+        return {
+            "area": area,
+            "status": status,
+            "records": len(records),
+            "review_items": review_items,
+            "details": details,
+        }
+
+    medicines = list(workspace.get("meds", []) or [])
+    prescriptions = list(workspace.get("prescriptions", []) or [])
+    health = list(workspace.get("health", []) or [])
+    appointments = list(workspace.get("appointments", []) or [])
+    contacts = list(workspace.get("contacts", []) or [])
+    tasks = list(workspace.get("tasks", []) or [])
+
+    prescription_ids = {
+        str(item.get("id")) for item in prescriptions if has_text(item.get("id"))
+    }
+    medicine_issues = 0
+    linked_sources = 0
+    unlinked_sources = 0
+    broken_sources = 0
+    for item in medicines:
+        if not has_text(item.get("name")):
+            medicine_issues += 1
+        if not has_text(item.get("strength")):
+            medicine_issues += 1
+        try:
+            datetime.strptime(str(item.get("time") or ""), "%H:%M")
+        except (TypeError, ValueError):
+            medicine_issues += 1
+        source_id = str(item.get("prescription_id") or "").strip()
+        if not source_id:
+            unlinked_sources += 1
+        elif source_id in prescription_ids:
+            linked_sources += 1
+        else:
+            broken_sources += 1
+    medicine_issues += broken_sources
+
+    prescription_issues = 0
+    files_referenced = 0
+    for item in prescriptions:
+        if not has_text(item.get("document_label")) or not has_text(item.get("file_name")):
+            prescription_issues += 1
+        has_file_reference = (
+            (bool(item.get("is_cloud")) and has_text(item.get("document_path")))
+            or has_text(item.get("file_data_b64"))
+        )
+        if has_file_reference:
+            files_referenced += 1
+        else:
+            prescription_issues += 1
+
+    health_issues = 0
+    for item in health:
+        if not has_text(item.get("metric")) or not has_aware_timestamp(item.get("observed_at")):
+            health_issues += 1
+            continue
+        value = item.get("value")
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError, OverflowError):
+            health_issues += 1
+            continue
+        if isinstance(value, bool) or not isfinite(numeric) or not has_text(item.get("source")):
+            health_issues += 1
+
+    appointment_issues = sum(
+        1 for item in appointments
+        if not has_text(item.get("title"))
+        or not has_text(item.get("provider"))
+        or not has_aware_timestamp(item.get("when"))
+        or not has_text(item.get("status"))
+    )
+    contact_issues = 0
+    for item in contacts:
+        try:
+            priority = int(item.get("priority"))
+        except (TypeError, ValueError, OverflowError):
+            priority = 0
+        if (
+            not has_text(item.get("name"))
+            or not has_text(item.get("relationship"))
+            or priority < 1
+        ):
+            contact_issues += 1
+    task_issues = sum(
+        1 for item in tasks
+        if not has_text(item.get("title"))
+        or not has_text(item.get("assignee"))
+        or not has_aware_timestamp(item.get("due"))
+        or not has_text(item.get("status"))
+    )
+
+    return [
+        make_check(
+            "Medication records",
+            medicines,
+            medicine_issues,
+            (
+                f"{linked_sources} source links present; {unlinked_sources} not linked "
+                f"(optional); {broken_sources} point to missing documents. "
+                "Links are for recordkeeping, not clinical matching."
+            ),
+        ),
+        make_check(
+            "Prescription documents",
+            prescriptions,
+            prescription_issues,
+            f"{files_referenced} of {len(prescriptions)} records have a stored-file reference.",
+        ),
+        make_check(
+            "Health observations",
+            health,
+            health_issues,
+            "Checks metric, numeric value, timestamp and source fields only; no health interpretation.",
+        ),
+        make_check(
+            "Appointments",
+            appointments,
+            appointment_issues,
+            "Checks visit label, provider, timezone-aware time and status.",
+        ),
+        make_check(
+            "Trusted contacts",
+            contacts,
+            contact_issues,
+            "Checks contact name, relationship and a positive contact priority.",
+        ),
+        make_check(
+            "Family care tasks",
+            tasks,
+            task_issues,
+            "Checks task label, assigned person, timezone-aware due time and status.",
+        ),
+    ]

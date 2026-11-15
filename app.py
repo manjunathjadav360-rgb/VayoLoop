@@ -34,7 +34,7 @@ from vayoloop_db import (
     save_health_observation,
     save_prescription_record,
 )
-from care_passport import build_care_passport, render_care_passport_html
+from care_passport import analyse_handoff_completeness, build_care_passport, render_care_passport_html
 from vayoloop_security import html_text, json_for_script
 
 st.set_page_config(
@@ -1139,6 +1139,34 @@ elif section == "Care Passport":
         "A portable, date-stamped handoff view built from fictional, session-only demo data."
     )
     passport = build_care_passport(workspace, profile_name="Asha Rao")
+    handoff_checks = analyse_handoff_completeness(workspace)
+    with st.container(border=True):
+        st.markdown("**Care handoff pre-flight review**")
+        st.caption(
+            "Administrative record checks before export. This does not assess medical accuracy, "
+            "medicine suitability, diagnosis or emergency readiness."
+        )
+        st.dataframe(
+            [
+                {
+                    "Area": item["area"],
+                    "Status": item["status"],
+                    "Records": item["records"],
+                    "Review items": item["review_items"],
+                    "Details": item["details"],
+                }
+                for item in handoff_checks
+            ],
+            hide_index=True,
+            use_container_width=True,
+            height=260,
+        )
+        needs_details = sum(item["status"] == "Needs details" for item in handoff_checks)
+        ready_sections = sum(item["status"] == "Ready for review" for item in handoff_checks)
+        st.caption(
+            f"{ready_sections} areas ready for review · {needs_details} areas need details. "
+            "Empty sections may be left blank when they are not relevant."
+        )
     if cloud_active:
         passport["notice"] = (
             "Mixed hackathon handoff: health observations and prescription metadata are read from the shared "

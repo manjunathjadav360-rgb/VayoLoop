@@ -2,7 +2,7 @@ import json
 import unittest
 from datetime import datetime
 
-from care_passport import build_care_passport, render_care_passport_html
+from care_passport import analyse_handoff_completeness, build_care_passport, render_care_passport_html
 from vayoloop_core import INDIA_TZ, record_dose, seed_demo_state
 
 
@@ -87,6 +87,43 @@ class CarePassportTests(unittest.TestCase):
         self.assertNotIn("<script>alert(1)</script>", rendered)
         self.assertIn("@media print", rendered)
         self.assertIn("Asia/Kolkata", rendered)
+
+
+    def test_handoff_review_accepts_complete_synthetic_records_and_marks_empty_sections(self):
+        checks = {item["area"]: item for item in analyse_handoff_completeness(self.workspace)}
+        self.assertEqual(checks["Medication records"]["status"], "Ready for review")
+        self.assertEqual(checks["Health observations"]["status"], "Ready for review")
+        self.assertEqual(checks["Appointments"]["status"], "Ready for review")
+        self.assertEqual(checks["Trusted contacts"]["status"], "Ready for review")
+        self.assertEqual(checks["Family care tasks"]["status"], "Ready for review")
+        self.assertEqual(checks["Prescription documents"]["status"], "No records")
+
+    def test_handoff_review_flags_missing_fields_and_broken_source_references(self):
+        self.workspace["meds"][0]["strength"] = ""
+        self.workspace["meds"][0]["prescription_id"] = "missing-document"
+        self.workspace["appointments"][0]["provider"] = ""
+        self.workspace["contacts"][0]["relationship"] = ""
+        self.workspace["health"][0]["observed_at"] = "2026-11-15T08:30:00"
+
+        checks = {item["area"]: item for item in analyse_handoff_completeness(self.workspace)}
+        self.assertEqual(checks["Medication records"]["status"], "Needs details")
+        self.assertEqual(checks["Medication records"]["review_items"], 2)
+        self.assertIn("1 point to missing documents", checks["Medication records"]["details"])
+        self.assertEqual(checks["Appointments"]["status"], "Needs details")
+        self.assertEqual(checks["Trusted contacts"]["status"], "Needs details")
+        self.assertEqual(checks["Health observations"]["status"], "Needs details")
+
+    def test_handoff_review_is_read_only_and_handles_an_empty_workspace(self):
+        import copy
+
+        workspace = {
+            "meds": [], "prescriptions": [], "health": [], "appointments": [],
+            "contacts": [], "tasks": [],
+        }
+        before = copy.deepcopy(workspace)
+        checks = analyse_handoff_completeness(workspace)
+        self.assertTrue(all(item["status"] == "No records" for item in checks))
+        self.assertEqual(workspace, before)
 
 
 if __name__ == "__main__":
