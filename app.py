@@ -31,7 +31,9 @@ from vayoloop_db import (
     download_prescription_file,
     list_health_observations,
     list_prescription_records,
+    parse_health_observations_csv,
     save_health_observation,
+    save_health_observations,
     save_prescription_record,
 )
 from care_passport import analyse_handoff_completeness, build_care_passport, render_care_passport_html
@@ -886,6 +888,87 @@ elif section == "Health journal":
                     except Exception as exc:
                         st.error(f"Observation could not be saved: {str(exc)[:180]}")
         st.markdown("<div class='vl-note'>A change in a number is not automatically good or bad. VayoLoop shows the recorded values and encourages the family to discuss concerns with a qualified clinician.</div>", unsafe_allow_html=True)
+
+    with st.container(border=True):
+        st.markdown("**Import a wearable / health-app export**")
+        st.caption(
+            "Upload a CSV exported from a supported watch or health app. This is a file import, "
+            "not a live device connection. Timestamps must be ISO-8601 and include a timezone."
+        )
+        st.code(
+            "metric,value,unit,observed_at,source\n"
+            "Daily steps,4200,steps,2026-11-15T08:00:00+05:30,Example watch",
+            language="csv",
+        )
+        wearable_csv = st.file_uploader(
+            "Choose wearable CSV export",
+            type=["csv"],
+            key="wearable_health_csv",
+            help="Up to 2 MB and 500 data rows. Required columns: metric, value, unit, observed_at. Source is optional.",
+        )
+        if wearable_csv is not None:
+            try:
+                import_rows, duplicate_count = parse_health_observations_csv(
+                    wearable_csv.getvalue(),
+                    existing_records=workspace["health"],
+                )
+            except ValueError as exc:
+                st.error(f"CSV could not be imported: {exc}")
+            else:
+                st.caption(
+                    f"{len(import_rows)} new observation(s) ready · "
+                    f"{duplicate_count} duplicate row(s) will be skipped."
+                )
+                if import_rows:
+                    st.dataframe(
+                        [
+                            {
+                                "Observation": item["metric"],
+                                "Value": f'{item["value"]:g} {item["unit"]}'.strip(),
+                                "Observed at": fmt_datetime(item["observed_at"]),
+                                "Source": item["source"],
+                            }
+                            for item in import_rows[:100]
+                        ],
+                        hide_index=True,
+                        use_container_width=True,
+                    )
+                    if len(import_rows) > 100:
+                        st.caption("Preview limited to the first 100 rows; all validated rows will be imported.")
+                    if st.button(
+                        f"Import {len(import_rows)} new observation(s)",
+                        key="import_wearable_csv",
+                        type="primary",
+                        use_container_width=True,
+                    ):
+                        try:
+                            if cloud_active:
+                                save_health_observations(cloud_client, import_rows)
+                                import_message = (
+                                    f"{len(import_rows)} observation(s) saved to the shared demo workspace. "
+                                    "They are visible to anyone using this public app."
+                                )
+                            else:
+                                stamp = int(datetime.now().timestamp() * 1000)
+                                for index, item in enumerate(import_rows):
+                                    workspace["health"].append({
+                                        "id": f"csv-{stamp}-{index}",
+                                        **item,
+                                    })
+                                import_message = (
+                                    f"{len(import_rows)} observation(s) added to this temporary demo session only."
+                                )
+                            add_event("Wearable CSV imported", f"{len(import_rows)} observations")
+                            st.success(import_message)
+                            st.rerun()
+                        except Exception as exc:
+                            st.error(f"Wearable import failed: {str(exc)[:180]}")
+                else:
+                    st.info("No new readings to import. All valid rows already exist in this workspace.")
+        st.caption(
+            "Imported values are recorded as supplied. VayoLoop does not verify the device, "
+            "interpret medical ranges or recommend treatment."
+        )
 
 elif section == "Appointments":
     st.subheader("Appointments and care visits")
