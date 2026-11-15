@@ -112,8 +112,10 @@ assert.match(architecture, /### Data ownership and persistence boundary/, 'Archi
 assert.match(architecture, /### Security and failure boundaries/, 'Architecture must document validation and failure boundaries');
 assert.match(architecture, /Public-demo consequence/, 'Architecture must disclose shared public demo data visibility');
 assert.match(architecture, /not a Bluetooth\/vendor-cloud integration/, 'Architecture must distinguish CSV file import from live device integration');
-assert.match(architecture, /examples\\/vayoloop_wearable_demo\\.csv/, 'Architecture must identify the current reproducible sample input');
-assert.match(readme, /examples\\/vayoloop_wearable_demo\\.csv/, 'README must identify the current reproducible sample input');
-assert.doesNotMatch(architecture + readme, /examples\\/wearable_export_sample\\.csv/, 'Documentation must not link to the retired sample input');
-assert.match(sampleCsv, /^metric,value,unit,observed_at,source\\r?$/m, 'The committed sample must use the parser header contract');
-assert.equal(sampleCsv.trim().split(/\\r?\\n/).length, 8, 'The committed sample must contain seven data rows plus its header');
+const currentSamplePath = 'examples/vayoloop_wearable_demo.csv';
+const retiredSamplePath = 'examples/wearable_export_sample.csv';
+assert.ok(architecture.includes(currentSamplePath), 'Architecture must identify the current reproducible sample input');
+assert.ok(readme.includes(currentSamplePath), 'README must identify the current reproducible sample input');
+assert.ok(!architecture.includes(retiredSamplePath) && !readme.includes(retiredSamplePath), 'Documentation must not link to the retired sample input');
+assert.ok(sampleCsv.startsWith('metric,value,unit,observed_at,source'), 'The committed sample must use the parser header contract');
+assert.equal(sampleCsv.trimEnd().split(String.fromCharCode(10)).length, 8, 'The committed sample must contain seven data rows plus its header');
