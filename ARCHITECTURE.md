@@ -51,7 +51,7 @@ flowchart TD
 
 ## Quality checks
 
-Every push runs:
+Every push to `main` and every pull request targeting `main` runs:
 1. JavaScript syntax and UI-wiring smoke checks.
 2. Python linting with Ruff.
 3. Python compilation.
