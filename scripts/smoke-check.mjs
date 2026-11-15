@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [html, app, streamlit, architecture] = await Promise.all([
+const [html, app, streamlit, architecture, readme, sampleCsv] = await Promise.all([
   readFile(new URL('../index.html', import.meta.url), 'utf8'),
   readFile(new URL('../app.js', import.meta.url), 'utf8'),
   readFile(new URL('../app.py', import.meta.url), 'utf8'),
-  readFile(new URL('../ARCHITECTURE.md', import.meta.url), 'utf8')
+  readFile(new URL('../ARCHITECTURE.md', import.meta.url), 'utf8'),
+  readFile(new URL('../README.md', import.meta.url), 'utf8'),
+  readFile(new URL('../examples/vayoloop_wearable_demo.csv', import.meta.url), 'utf8')
 ]);
 
 const ids = [...html.matchAll(/id="([^"]+)"/g)].map(match => match[1]);
@@ -110,4 +112,10 @@ assert.match(architecture, /### Data ownership and persistence boundary/, 'Archi
 assert.match(architecture, /### Security and failure boundaries/, 'Architecture must document validation and failure boundaries');
 assert.match(architecture, /Public-demo consequence/, 'Architecture must disclose shared public demo data visibility');
 assert.match(architecture, /not a Bluetooth\/vendor-cloud integration/, 'Architecture must distinguish CSV file import from live device integration');
-assert.match(architecture, /examples\/wearable_export_sample\.csv/, 'Architecture must identify the reproducible sample input');
+const currentSamplePath = 'examples/vayoloop_wearable_demo.csv';
+const retiredSamplePath = 'examples/wearable_export_sample.csv';
+assert.ok(architecture.includes(currentSamplePath), 'Architecture must identify the current reproducible sample input');
+assert.ok(readme.includes(currentSamplePath), 'README must identify the current reproducible sample input');
+assert.ok(!architecture.includes(retiredSamplePath) && !readme.includes(retiredSamplePath), 'Documentation must not link to the retired sample input');
+assert.ok(sampleCsv.startsWith('metric,value,unit,observed_at,source'), 'The committed sample must use the parser header contract');
+assert.equal(sampleCsv.trimEnd().split(String.fromCharCode(10)).length, 8, 'The committed sample must contain seven data rows plus its header');
