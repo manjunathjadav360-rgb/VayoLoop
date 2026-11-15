@@ -34,7 +34,7 @@ jobs:
         run: pip install -r requirements.txt
       - name: Check Streamlit application and care workflows
         run: |
-          python -m compileall -q app.py vayoloop_core.py tests
+          python -m compileall -q app.py vayoloop_core.py vayoloop_db.py tests
           python -m unittest discover -s tests -v
 
   deploy:
