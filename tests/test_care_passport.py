@@ -36,6 +36,29 @@ class CarePassportTests(unittest.TestCase):
         self.assertEqual(medicine["status"], "Inactive record")
         self.assertEqual(snapshot["counts"]["active_medicines"], 2)
 
+    def test_prescription_metadata_is_in_passport_but_file_bytes_are_not(self):
+        self.workspace["prescriptions"] = [{
+            "id": "rx-1",
+            "document_label": "Clinic visit prescription",
+            "file_name": "prescription.pdf",
+            "file_type": "application/pdf",
+            "file_size_bytes": 1024,
+            "file_data_b64": "c2FtcGxl",
+            "prescribed_on": "2026-11-15",
+            "clinic": "Sample clinic",
+            "clinician": "Dr Example",
+            "condition_as_written": "As written on sample document",
+            "notes": "Bring to next visit",
+            "uploaded_at": self.now.isoformat(),
+        }]
+        snapshot = build_care_passport(self.workspace, generated_at=self.now)
+        self.assertEqual(snapshot["counts"]["prescription_documents"], 1)
+        self.assertEqual(snapshot["prescriptions"][0]["file_name"], "prescription.pdf")
+        self.assertNotIn("file_data_b64", json.dumps(snapshot))
+        rendered = render_care_passport_html(snapshot)
+        self.assertIn("Clinic visit prescription", rendered)
+        self.assertIn("Download in Prescription library", rendered)
+
     def test_print_html_escapes_user_content_and_has_print_styles(self):
         self.workspace["contacts"][0]["name"] = "<script>alert(1)</script>"
         snapshot = build_care_passport(self.workspace, generated_at=self.now)
