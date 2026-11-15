@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from vayoloop_db import (
     DEMO_WORKSPACE_ID,
@@ -393,6 +394,14 @@ class VayoLoopDatabaseMappingTests(unittest.TestCase):
         self.assertTrue(
             all(item["workspace_id"] == DEMO_WORKSPACE_ID for item in client.query.payload)
         )
+
+
+    def test_committed_wearable_sample_csv_is_importable(self):
+        sample_path = Path(__file__).resolve().parents[1] / "examples" / "wearable_export_sample.csv"
+        rows, duplicates = parse_health_observations_csv(sample_path.read_bytes())
+        self.assertEqual(len(rows), 7)
+        self.assertEqual(duplicates, 0)
+        self.assertTrue(all(row["source"] == "Example smartwatch export" for row in rows))
 
 if __name__ == "__main__":
     unittest.main()

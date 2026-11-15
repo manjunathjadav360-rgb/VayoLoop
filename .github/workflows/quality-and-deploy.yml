@@ -31,7 +31,7 @@ jobs:
       - name: Install Streamlit runtime
         run: pip install -r requirements.txt
       - name: Install Python lint tool
-        run: pip install "ruff>=0.14,<1"
+        run: pip install "ruff==0.17.5"
       - name: Lint Python source
         run: ruff check --output-format=github .
       - name: Check Streamlit application and care workflows
