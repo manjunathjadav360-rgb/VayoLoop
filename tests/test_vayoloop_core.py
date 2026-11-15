@@ -65,6 +65,7 @@ class VayoLoopCoreTests(unittest.TestCase):
         self.assertIsNone(parse_aware_india_datetime("2026-11-15T10:00:00"))
         self.assertIsNone(parse_aware_india_datetime("not-a-time"))
         self.assertIsNone(parse_aware_india_datetime(None))
+        self.assertIsNone(parse_aware_india_datetime("0001-01-01T00:00:00+14:00"))
 
     def test_seed_state_is_synthetic_and_has_india_timezone_dates(self):
         state = seed_demo_state(datetime(2026, 11, 15, 10, 0, tzinfo=INDIA_TZ))
