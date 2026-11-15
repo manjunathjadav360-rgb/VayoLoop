@@ -92,6 +92,16 @@
     memoryOnly = true;
   }
 
+  state.reminderLog ||= [];
+  state.alertedDoseKeys ||= [];
+  let voiceEnabled = false;
+  let audioContext = null;
+  let alarmInterval = null;
+  let activeAlarm = null;
+  let alarmMuted = false;
+  let speechRecognition = null;
+  try { voiceEnabled = localStorage.getItem('vayoloop_voice_enabled') === '1'; } catch { voiceEnabled = false; }
+
   function save() {
     if (memoryOnly) return;
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -104,6 +114,360 @@
     clearTimeout(toast.timer);
     toast.timer = setTimeout(() => $('toast').classList.add('hidden'), 3200);
   }
+
+  function voiceStatus(message, active = voiceEnabled) {
+    $('voiceStatus').textContent = message;
+    $('voiceBadge').textContent = active ? 'Voice ready' : 'Voice off';
+    $('voiceBadge').className = 'pill ' + (active ? 'voice-badge' : 'neutral voice-badge');
+    $('voiceWave').classList.toggle('active', active);
+  }
+
+  function updateVoiceControls() {
+    $('enableVoice').textContent = voiceEnabled ? 'Disable voice companion' : 'Enable voice companion';
+    $('readHealth').disabled = !voiceEnabled;
+    $('voiceCommands').disabled = !voiceEnabled || !(window.SpeechRecognition || window.webkitSpeechRecognition);
+    $('stopSpeech').disabled = !('speechSynthesis' in window) || !voiceEnabled;
+    $('stopAlarm').disabled = !activeAlarm || !alarmInterval;
+  }
+
+  async function unlockAudio() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return false;
+    if (!audioContext) audioContext = new AudioContextClass();
+    if (audioContext.state === 'suspended') await audioContext.resume();
+    return audioContext.state === 'running';
+  }
+
+  function playAlarmTone() {
+    if (!audioContext || audioContext.state !== 'running') return;
+    const beep = () => {
+      if (!activeAlarm || !audioContext || audioContext.state !== 'running') return;
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const start = audioContext.currentTime;
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.075, start + 0.025);
+      gain.gain.setValueAtTime(0.075, start + 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start(start);
+      oscillator.stop(start + 0.3);
+    };
+    beep();
+    if (alarmInterval) clearInterval(alarmInterval);
+    alarmInterval = window.setInterval(beep, 1050);
+    updateVoiceControls();
+  }
+
+  function renderMissedDosePanel() {
+    const missed = getMissedDoses();
+    if (!missed.length && !(activeAlarm && activeAlarm.test)) {
+      $('missedDoseNotice').classList.add('hidden');
+      return;
+    }
+    $('missedDoseNotice').classList.remove('hidden');
+    if (activeAlarm && activeAlarm.test) {
+      $('missedDoseTitle').textContent = 'Missed-dose alarm test';
+      $('missedDoseText').textContent = 'This is a sound check only. No medicine status or care record has been changed.';
+    } else {
+      $('missedDoseTitle').textContent = missed.length + (missed.length === 1 ? ' sample dose needs attention' : ' sample doses need attention');
+      $('missedDoseText').textContent = missed.map(item => item.med.name + ' · scheduled ' + item.med.time).join(' | ') + '. Report only if the sample dose was taken.';
+    }
+    $('acknowledgeAlert').textContent = alarmMuted ? 'Sound stopped' : 'Stop and review';
+    $('acknowledgeAlert').disabled = alarmMuted || !activeAlarm;
+  }
+
+  function startAlarm(medication, test = false) {
+    if (activeAlarm) return;
+    activeAlarm = {
+      id: test ? 'demo-test' : medication.id,
+      name: test ? 'Demo test' : medication.name,
+      test
+    };
+    alarmMuted = false;
+    renderMissedDosePanel();
+    updateVoiceControls();
+    if (audioContext && audioContext.state === 'running') {
+      playAlarmTone();
+      voiceStatus(test
+        ? 'Alarm test is sounding. Stop it with the button or say “stop alarm”.'
+        : 'A sample dose is past its reminder window. A repeating alert is sounding.', voiceEnabled);
+    } else {
+      voiceStatus('A missed sample dose needs attention. Tap Enable voice companion or Test alarm to unlock browser sound.', voiceEnabled);
+    }
+    if (!test && voiceEnabled) speak('Asha, the sample reminder for ' + medication.name + ' is now marked missed in this demo. Please check the care plan. This is not a real medication alert.');
+  }
+
+  function stopAlarm() {
+    if (alarmInterval) clearInterval(alarmInterval);
+    alarmInterval = null;
+    activeAlarm = null;
+    alarmMuted = true;
+    renderMissedDosePanel();
+    updateVoiceControls();
+    if (voiceEnabled) voiceStatus('The alarm sound is stopped. Please review the sample medication record; stopping the sound does not mark a dose as taken.', true);
+    toast('Alarm sound stopped. The dose has not been marked as taken.');
+  }
+
+  function speak(text, options = {}) {
+    if (!voiceEnabled) return false;
+    if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+      voiceStatus('Spoken audio is not supported in this browser. The on-screen controls still work.', false);
+      return false;
+    }
+    const utterance = new SpeechSynthesisUtterance(String(text));
+    const voices = window.speechSynthesis.getVoices();
+    utterance.voice = voices.find(voice => /^en-IN/i.test(voice.lang))
+      || voices.find(voice => /^en-GB/i.test(voice.lang))
+      || voices.find(voice => /^en/i.test(voice.lang))
+      || null;
+    utterance.lang = utterance.voice?.lang || 'en-IN';
+    utterance.rate = options.rate || 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    utterance.onstart = () => voiceStatus('VayoLoop is speaking. You can stop the voice at any time.', true);
+    utterance.onend = () => voiceStatus('Voice companion is ready. Spoken reminders are active while this page stays open.', true);
+    utterance.onerror = event => {
+      if (event.error === 'interrupted' || event.error === 'canceled') return;
+      voiceStatus('The browser blocked speech. Tap Enable voice companion again to resume.', false);
+    };
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+    return true;
+  }
+
+  function healthBriefing() {
+    const parts = ['Here is your VayoLoop sample care update for Asha Rao.'];
+    const steps = latestTwo('steps');
+    const sleep = latestTwo('sleep_hours');
+    const heart = latestTwo('resting_heart_rate');
+
+    function compare(values, name, unit) {
+      if (values.length < 2) return name + ' needs more recorded entries to describe a trend.';
+      const before = Number(values[0].value);
+      const after = Number(values[1].value);
+      if (!Number.isFinite(before) || !Number.isFinite(after)) return name + ' could not be compared.';
+      const diff = before === 0 ? 0 : Math.round(((after-before)/Math.abs(before))*100);
+      const direction = diff > 2 ? 'higher' : diff < -2 ? 'lower' : 'similar';
+      return name + ' is ' + direction + ' in the latest sample. The last two readings were ' + before + ' and ' + after + ' ' + unit + '.';
+    }
+
+    parts.push(compare(steps, 'Recorded daily steps', 'steps'));
+    parts.push(compare(sleep, 'Recorded sleep duration', 'hours'));
+    parts.push(compare(heart, 'Recorded resting heart rate', 'beats per minute'));
+
+    const missed = getMissedDoses();
+    if (missed.length) {
+      parts.push('There are ' + missed.length + ' sample medication reminder' + (missed.length===1?'':'s') + ' past the reminder window: ' + missed.map(item=>item.med.name).join(', ') + '. Please review the record.');
+    } else {
+      parts.push('There are no sample medication reminders currently marked as missed.');
+    }
+    const next = state.appointments
+      .filter(item => item.status==='scheduled' && new Date(item.scheduledAt)>=now())
+      .sort((a,b)=>new Date(a.scheduledAt)-new Date(b.scheduledAt))[0];
+    parts.push(next
+      ? 'Your next sample appointment is ' + next.title + ' on ' + dateLabel(next.scheduledAt) + '.'
+      : 'There are no upcoming sample appointments.');
+    parts.push('This is a summary of fictional entries, not a medical assessment or treatment recommendation.');
+    return parts.join(' ');
+  }
+
+  function nextAppointmentBriefing() {
+    const next = state.appointments.filter(item => item.status==='scheduled' && new Date(item.scheduledAt)>=now())
+      .sort((a,b)=>new Date(a.scheduledAt)-new Date(b.scheduledAt))[0];
+    return next
+      ? 'Your next sample appointment is ' + next.title + ', with ' + (next.clinician || 'the listed clinic') + ', on ' + dateLabel(next.scheduledAt) + '.'
+      : 'There are no upcoming sample appointments in this demo.';
+  }
+
+  function reminderKey(prefix, id, date) {
+    return prefix + ':' + id + ':' + date.getFullYear() + '-' + (date.getMonth()+1) + '-' + date.getDate();
+  }
+
+  function getMissedDoses(at = now()) {
+    const today = startOfDay(at);
+    return state.meds.filter(med => {
+      if (!med.active || !/^\d{2}:\d{2}$/.test(med.time)) return false;
+      const [hour,minute] = med.time.split(':').map(Number);
+      const due = new Date(today);
+      due.setHours(hour,minute,0,0);
+      const reported = state.doseReports.some(report =>
+        report.medicationId === med.id && startOfDay(new Date(report.at)).getTime() === today.getTime()
+      );
+      return !reported && at.getTime()-due.getTime() >= 30*60*1000;
+    }).map(med => ({med}));
+  }
+
+  function evaluateVoiceReminders() {
+    if (!voiceEnabled) return;
+    const current = now();
+    const today = startOfDay(current);
+    let stateChanged = false;
+
+    for (const med of state.meds.filter(item=>item.active)) {
+      if (!/^\d{2}:\d{2}$/.test(med.time)) continue;
+      const [hour,minute] = med.time.split(':').map(Number);
+      const due = new Date(today);
+      due.setHours(hour,minute,0,0);
+      const reported = state.doseReports.some(report =>
+        report.medicationId===med.id && startOfDay(new Date(report.at)).getTime()===today.getTime()
+      );
+      if (reported) continue;
+      const diff = current.getTime()-due.getTime();
+      const key = reminderKey('dose',med.id,today);
+      if (diff >= 30*60*1000) {
+        if (!state.alertedDoseKeys.includes(key)) {
+          state.alertedDoseKeys.push(key);
+          addEvent('Sample dose reminder missed',med.name+' · alert raised in the voice demo','medication');
+          stateChanged = true;
+          if (!activeAlarm) startAlarm(med,false);
+        }
+      } else if (diff >= 0 && !state.reminderLog.includes(key)) {
+        state.reminderLog.push(key);
+        stateChanged = true;
+        speak('Asha, it is time to check your sample medication routine for ' + med.name + '. Please follow your real care plan and verified clinician instructions.');
+      }
+    }
+
+    for (const appointment of state.appointments.filter(item=>item.status==='scheduled')) {
+      const minutesUntil = (new Date(appointment.scheduledAt).getTime()-current.getTime())/60000;
+      const windowName = minutesUntil<=60 && minutesUntil>=0 ? 'one-hour'
+        : minutesUntil<=24*60 && minutesUntil>60 ? 'one-day' : null;
+      if (!windowName) continue;
+      const key = reminderKey('appointment-'+windowName,appointment.id,new Date(appointment.scheduledAt));
+      if (!state.reminderLog.includes(key)) {
+        state.reminderLog.push(key);
+        stateChanged = true;
+        speak(windowName==='one-hour'
+          ? 'Asha, your sample appointment ' + appointment.title + ' is scheduled in about one hour.'
+          : 'Asha, a reminder that your sample appointment ' + appointment.title + ' is tomorrow.');
+      }
+    }
+
+    state.reminderLog = state.reminderLog.slice(-150);
+    state.alertedDoseKeys = state.alertedDoseKeys.slice(-150);
+    if (stateChanged) save();
+    renderMissedDosePanel();
+  }
+
+  async function enableVoiceCompanion() {
+    voiceEnabled = true;
+    try { localStorage.setItem('vayoloop_voice_enabled','1'); } catch {}
+    let audioReady = false;
+    try { audioReady = await unlockAudio(); } catch {}
+    updateVoiceControls();
+    const hour = now().getHours();
+    const greeting = (hour<12?'Good morning':hour<17?'Good afternoon':'Good evening') + ', Asha. I am VayoLoop, your care companion.';
+    const briefing = healthBriefing();
+    const speechReady = speak(greeting + ' ' + briefing);
+    if (!speechReady) voiceStatus('Voice is enabled, but this browser cannot provide speech. Your sample records remain available on screen.', false);
+    else if (!audioReady) voiceStatus('Spoken updates are enabled. The sound alert may need another tap if the browser suspends audio.', true);
+    evaluateVoiceReminders();
+    toast('Voice companion enabled for this demo.');
+  }
+
+  function disableVoiceCompanion() {
+    voiceEnabled = false;
+    try { localStorage.setItem('vayoloop_voice_enabled','0'); } catch {}
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    stopRecognition();
+    if (alarmInterval) clearInterval(alarmInterval);
+    alarmInterval = null;
+    activeAlarm = null;
+    renderMissedDosePanel();
+    updateVoiceControls();
+    voiceStatus('Voice is off. On-screen demo controls remain available.', false);
+  }
+
+  function handleVoiceCommand(raw) {
+    const command = raw.toLowerCase().replace(/[^\w\s]/g,' ').replace(/\s+/g,' ').trim();
+    if (!command) return speak('I did not catch that. Please try again.');
+    if (command.includes('health') || command.includes('wellbeing') || command.includes('how am i')) {
+      switchView('health'); speak(healthBriefing()); return;
+    }
+    if (command.includes('medication') || command.includes('medicine') || command.includes('dose')) {
+      switchView('medications'); speak('Opening your sample medication routine. You can review the scheduled times and self-reported dose entries.'); return;
+    }
+    if (command.includes('appointment') || command.includes('doctor')) {
+      switchView('appointments'); speak(nextAppointmentBriefing()); return;
+    }
+    if (command.includes('care circle') || command.includes('family')) {
+      if ((roleTabs[previewRole]||[]).includes('care')) {
+        switchView('care'); speak('Opening your sample care circle and example member roles.');
+      } else speak('The care circle is not part of this limited viewer preview.');
+      return;
+    }
+    if (command.includes('device') || command.includes('watch') || command.includes('home')) {
+      if ((roleTabs[previewRole]||[]).includes('devices')) switchView('devices');
+      speak('The connected living page contains simulated device events only. No real watch or appliance is connected.');
+      return;
+    }
+    if (command.includes('stop alarm') || command.includes('silence alarm')) {
+      if (activeAlarm) stopAlarm(); else speak('There is no active demo alarm.');
+      return;
+    }
+    if (command.includes('stop talking') || command.includes('stop speaking')) {
+      window.speechSynthesis.cancel(); voiceStatus('Speech stopped. Voice companion remains ready.',true); return;
+    }
+    if (command.includes('i took') || command.includes('taken my medicine')) {
+      speak('For accuracy, please use the on-screen report control. Voice recognition will not mark a medicine as taken automatically.');
+      return;
+    }
+    speak('I can open medications, read your health summary, read appointments, open the care circle or show connected living.');
+  }
+
+  function startVoiceCommands() {
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      toast('Voice commands are not supported in this browser. Spoken reminders still work.');
+      return;
+    }
+    if (speechRecognition) {
+      try { speechRecognition.stop(); } catch {}
+    }
+    speechRecognition = new Recognition();
+    speechRecognition.lang = 'en-IN';
+    speechRecognition.interimResults = false;
+    speechRecognition.maxAlternatives = 1;
+    speechRecognition.onstart = () => voiceStatus('Listening for one command. Try “read my health summary”.',true);
+    speechRecognition.onresult = event => handleVoiceCommand(event.results?.[0]?.[0]?.transcript || '');
+    speechRecognition.onerror = event => voiceStatus('Microphone input was unavailable ('+event.error+'). You can still use the buttons.',true);
+    speechRecognition.onend = () => {
+      if (voiceEnabled) voiceStatus('Voice companion is ready.',true);
+    };
+    try { speechRecognition.start(); }
+    catch { toast('The microphone could not start. Check browser microphone permission.'); }
+  }
+
+  function stopRecognition() {
+    if (speechRecognition) {
+      speechRecognition.onend = null;
+      try { speechRecognition.stop(); } catch {}
+      speechRecognition = null;
+    }
+  }
+
+  $('enableVoice').addEventListener('click', () => {
+    if (voiceEnabled) disableVoiceCompanion();
+    else enableVoiceCompanion();
+  });
+  $('readHealth').addEventListener('click', () => speak(healthBriefing()));
+  $('voiceCommands').addEventListener('click', startVoiceCommands);
+  $('stopSpeech').addEventListener('click', () => {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    voiceStatus('Speech stopped. Voice companion remains ready.',true);
+  });
+  $('stopAlarm').addEventListener('click',stopAlarm);
+  $('acknowledgeAlert').addEventListener('click',stopAlarm);
+  $('testMissedDose').addEventListener('click',async () => {
+    try { await unlockAudio(); } catch {}
+    if ('speechSynthesis' in window && !voiceEnabled) toast('Sound test only. Enable the voice companion for spoken reminders.');
+    startAlarm({id:'demo-test',name:'Demo test'},true);
+    if (!alarmInterval) toast('The browser did not allow sound. Tap Enable voice companion first.');
+  });
 
   function switchView(name) {
     document.querySelectorAll('[data-tab]').forEach(button => {
