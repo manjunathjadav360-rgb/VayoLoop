@@ -127,7 +127,11 @@
   }
 
   function updateVoiceControls() {
-    $('enableVoice').textContent = voiceEnabled ? 'Disable voice companion' : 'Enable voice companion';
+    const audioSupported = !!(window.AudioContext || window.webkitAudioContext);
+    const needsResume = voiceEnabled && audioSupported && (!audioContext || audioContext.state !== 'running');
+    $('enableVoice').textContent = voiceEnabled
+      ? (needsResume ? 'Resume voice & sound' : 'Disable voice companion')
+      : 'Enable voice companion';
     $('readHealth').disabled = !voiceEnabled;
     $('voiceCommands').disabled = !voiceEnabled || !(window.SpeechRecognition || window.webkitSpeechRecognition);
     $('stopSpeech').disabled = !('speechSynthesis' in window) || !voiceEnabled;
@@ -362,6 +366,7 @@
     try { localStorage.setItem('vayoloop_voice_enabled','1'); } catch {}
     let audioReady = false;
     try { audioReady = await unlockAudio(); } catch {}
+    if (audioReady && activeAlarm) playAlarmTone();
     updateVoiceControls();
     const hour = now().getHours();
     const greeting = (hour<12?'Good morning':hour<17?'Good afternoon':'Good evening') + ', Asha. I am VayoLoop, your care companion.';
@@ -455,7 +460,9 @@
   }
 
   $('enableVoice').addEventListener('click', () => {
-    if (voiceEnabled) disableVoiceCompanion();
+    const audioSupported = !!(window.AudioContext || window.webkitAudioContext);
+    const needsResume = voiceEnabled && audioSupported && (!audioContext || audioContext.state !== 'running');
+    if (voiceEnabled && !needsResume) disableVoiceCompanion();
     else enableVoiceCompanion();
   });
   $('readHealth').addEventListener('click', () => speak(healthBriefing()));
