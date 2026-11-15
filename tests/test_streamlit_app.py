@@ -27,6 +27,8 @@ class StreamlitPageSmokeTests(unittest.TestCase):
         self.assertIn("html { font-size: 118%; }", source)
         self.assertIn("[role=\"combobox\"]", source)
         self.assertIn("parse_aware_india_datetime", source)
+        self.assertIn('"Data quality": "Needs review" if item.get("validation_issue") else "Validated"', source)
+        self.assertIn("excluded from numerical trend analysis", source)
         self.assertNotIn("components.v1.html", source)
         self.assertNotIn("use_container_width", source)
 
