@@ -35,6 +35,26 @@ class VayoLoopDatabaseMappingTests(unittest.TestCase):
         self.assertEqual(mapped["value"], 122.5)
         self.assertEqual(mapped["unit"], "mmHg")
 
+    def test_persisted_health_rows_reject_boolean_negative_and_timezone_naive_values(self):
+        base = {
+            "id": "health-invalid",
+            "metric": "Daily steps",
+            "value": 100,
+            "unit": "steps",
+            "observed_at": "2026-11-15T08:30:00+05:30",
+            "source": "Example import",
+            "context": {},
+        }
+        invalid_rows = [
+            {**base, "value": True},
+            {**base, "value": -1},
+            {**base, "observed_at": "2026-11-15T08:30:00"},
+        ]
+        for row in invalid_rows:
+            with self.subTest(row=row):
+                with self.assertRaises(ValueError):
+                    map_health_record(row)
+
     def test_prescription_row_is_shared_demo_record(self):
         mapped = map_prescription_record({
             "id": "rx-1",
