@@ -960,4 +960,17 @@
   $('greeting').textContent=(greetHour<12?'Good morning':greetHour<17?'Good afternoon':'Good evening')+', Asha';
   if (!memoryOnly) { try { if (!localStorage.getItem(STORAGE_KEY)) save(); } catch { memoryOnly = true; } }
   render();
+  updateVoiceControls();
+  if (voiceEnabled) {
+    voiceStatus('Your voice preference is remembered. VayoLoop is preparing your spoken welcome.',true);
+    window.setTimeout(() => {
+      const hour = now().getHours();
+      const welcome = (hour<12?'Good morning':hour<17?'Good afternoon':'Good evening') + ', Asha. Welcome back to VayoLoop. ';
+      speak(welcome + healthBriefing());
+      evaluateVoiceReminders();
+    }, 900);
+  } else {
+    voiceStatus('Voice is off. Enable it once to hear the spoken welcome and reminders.',false);
+  }
+  window.setInterval(evaluateVoiceReminders,15000);
 })();
