@@ -117,6 +117,9 @@ def normalise_health_observation(
     if len(source_value) > 100:
         raise ValueError("Source must be 100 characters or fewer.")
 
+    if isinstance(value, bool):
+        raise ValueError("Observation value must be numeric, not a boolean.")
+
     try:
         numeric_value = float(value)
     except (TypeError, ValueError, OverflowError) as exc:
@@ -191,9 +194,17 @@ def parse_health_observations_csv(
 
     try:
         reader = csv.DictReader(io.StringIO(decoded))
+        raw_headers = reader.fieldnames or []
+        normalised_header_names = [
+            str(header or "").strip().casefold()
+            for header in raw_headers
+            if str(header or "").strip()
+        ]
+        if len(normalised_header_names) != len(set(normalised_header_names)):
+            raise ValueError("CSV contains duplicate column names.")
         headers = {
             str(header or "").strip().casefold(): header
-            for header in (reader.fieldnames or [])
+            for header in raw_headers
             if str(header or "").strip()
         }
         required = {"metric", "value", "unit", "observed_at"}
@@ -214,6 +225,10 @@ def parse_health_observations_csv(
         for line_number, raw in enumerate(reader, start=2):
             if not raw or not any(str(value or "").strip() for value in raw.values()):
                 continue
+            if None in raw and raw[None]:
+                raise ValueError(
+                    f"CSV row {line_number}: contains more values than the header."
+                )
             row_count += 1
             if row_count > MAX_HEALTH_IMPORT_ROWS:
                 raise ValueError(f"The CSV may contain no more than {MAX_HEALTH_IMPORT_ROWS} data rows.")
