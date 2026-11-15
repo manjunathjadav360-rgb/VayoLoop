@@ -42,7 +42,7 @@ st.set_page_config(
     page_title="VayoLoop — Care beyond reminders",
     page_icon="🌿",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 VOICE_LANGUAGES = {
