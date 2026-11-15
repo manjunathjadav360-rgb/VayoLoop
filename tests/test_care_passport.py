@@ -57,7 +57,7 @@ class CarePassportTests(unittest.TestCase):
         self.assertNotIn("file_data_b64", json.dumps(snapshot))
         rendered = render_care_passport_html(snapshot)
         self.assertIn("Clinic visit prescription", rendered)
-        self.assertIn("Download in Prescription library", rendered)
+        self.assertIn("Original file available only in the active demo session", rendered)
 
     def test_print_html_escapes_user_content_and_has_print_styles(self):
         self.workspace["contacts"][0]["name"] = "<script>alert(1)</script>"
