@@ -9,6 +9,8 @@ from vayoloop_db import (
     is_valid_demo_storage_path,
     save_health_observation,
     delete_prescription_record,
+    download_prescription_file,
+    save_prescription_record,
 )
 
 
@@ -133,6 +135,126 @@ class VayoLoopDatabaseMappingTests(unittest.TestCase):
         self.assertEqual(client.query.payload["metric"], "Daily steps")
         self.assertEqual(client.query.payload["value"], 12.0)
         self.assertEqual(client.query.payload["unit"], "steps")
+
+
+    def test_download_rejects_invalid_object_path_before_storage_access(self):
+        class NeverCalledStorage:
+            def from_(self, _bucket_name):
+                raise AssertionError("Storage must not be accessed for an invalid path.")
+
+        class Client:
+            storage = NeverCalledStorage()
+
+        with self.assertRaises(ValueError):
+            download_prescription_file(
+                Client(), f"{DEMO_WORKSPACE_ID}/../outside/secret.pdf"
+            )
+
+    def test_prescription_upload_cleans_orphan_file_when_metadata_insert_fails(self):
+        class Bucket:
+            def __init__(self):
+                self.uploaded_path = None
+                self.removed_paths = []
+            def upload(self, path, _payload, _options):
+                self.uploaded_path = path
+            def remove(self, paths):
+                self.removed_paths.extend(paths)
+
+        class Storage:
+            def __init__(self):
+                self.bucket = Bucket()
+            def from_(self, _bucket_name):
+                return self.bucket
+
+        class Query:
+            def insert(self, _payload):
+                return self
+            def execute(self):
+                raise RuntimeError("metadata insert failed")
+
+        class Client:
+            def __init__(self):
+                self.storage = Storage()
+                self.query = Query()
+            def table(self, _table_name):
+                return self.query
+
+        client = Client()
+        with self.assertRaisesRegex(RuntimeError, "metadata insert failed"):
+            save_prescription_record(
+                client,
+                b"%PDF-1.7 synthetic test document",
+                "synthetic.pdf",
+                "application/pdf",
+                "Synthetic test prescription",
+                "2026-11-15",
+                "Example clinic",
+                "Example prescriber",
+                "As written on sample document",
+                "Fictional test only",
+            )
+        self.assertIsNotNone(client.storage.bucket.uploaded_path)
+        self.assertEqual(
+            client.storage.bucket.removed_paths,
+            [client.storage.bucket.uploaded_path],
+        )
+
+    def test_prescription_upload_cleanup_failure_does_not_hide_database_error(self):
+        class Bucket:
+            def upload(self, _path, _payload, _options):
+                pass
+            def remove(self, _paths):
+                raise RuntimeError("storage cleanup failed")
+
+        class Storage:
+            def from_(self, _bucket_name):
+                return Bucket()
+
+        class Query:
+            def insert(self, _payload):
+                return self
+            def execute(self):
+                raise RuntimeError("original database failure")
+
+        class Client:
+            storage = Storage()
+            def table(self, _table_name):
+                return Query()
+
+        with self.assertRaisesRegex(RuntimeError, "original database failure"):
+            save_prescription_record(
+                Client(),
+                b"%PDF-1.7 synthetic test document",
+                "synthetic.pdf",
+                "application/pdf",
+                "Synthetic test prescription",
+                "2026-11-15",
+                "",
+                "",
+                "",
+                "",
+            )
+
+    def test_prescription_upload_rejects_oversized_file_before_upload(self):
+        class NeverCalledClient:
+            class Storage:
+                def from_(self, _bucket_name):
+                    raise AssertionError("Storage must not be accessed for an oversized file.")
+            storage = Storage()
+
+        with self.assertRaises(ValueError):
+            save_prescription_record(
+                NeverCalledClient(),
+                b"%PDF-" + (b"x" * (10 * 1024 * 1024)),
+                "oversized.pdf",
+                "application/pdf",
+                "Oversized test",
+                "2026-11-15",
+                "",
+                "",
+                "",
+                "",
+            )
 
 if __name__ == "__main__":
     unittest.main()
