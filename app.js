@@ -164,6 +164,78 @@
     ).join('');
   }
 
+  const tourSteps = [
+    {symbol:'◉',kicker:'01 · ELDER-FIRST BY DESIGN',title:'Care starts with the person.',body:'Asha is the owner of this sample care space. She can see her routines, choose who joins her care circle and decide what information is shared.',callout:'The goal is supported independence: family participation should help the elder, not take control away.',tab:'overview'},
+    {symbol:'↗',kicker:'02 · MEDICATION JOURNEY',title:'Not just a reminder. A traceable journey.',body:'A medicine record becomes a daily routine, a self-reported dose event and a point for follow-up review. Each step adds context to the care timeline.',callout:'Future prescription-change checks should flag possible duplicates or outdated entries for pharmacist or clinician verification—not change a treatment.',tab:'medications'},
+    {symbol:'⌁',kicker:'03 · HEALTH PROGRESS INTELLIGENCE',title:'Notice patterns. Never pretend to diagnose.',body:'VayoLoop brings dated observations together so the care circle can see whether activity, sleep or other recorded measures are changing against Asha’s own history.',callout:'A direction or unusual change is a prompt for human attention, not a diagnosis or proof that a medicine caused it.',tab:'health'},
+    {symbol:'⌂',kicker:'04 · CONNECTED LIVING',title:'The home becomes part of the care context.',body:'Wearables and compatible home sensors could provide activity or safety signals. A possible event can start a confirmation and care-circle response flow.',callout:'This screen simulates the flow only. It does not connect to real watches, appliances, location services or emergency services.',tab:'devices'},
+    {symbol:'◎',kicker:'05 · SHARED CARE, CLEAR BOUNDARIES',title:'Keep trusted people in the loop.',body:'Different roles need different levels of access. Family can review, caregivers can help with routines, and the elder remains central to decisions.',callout:'The role selector in this public prototype is a UI demonstration. Production permissions are enforced by the secured backend, not this browser-only demo.',tab:'care'}
+  ];
+
+  function renderTour() {
+    const step = tourSteps[tourIndex];
+    $('tourSymbol').textContent = step.symbol;
+    $('tourKicker').textContent = step.kicker;
+    $('tourTitle').textContent = step.title;
+    $('tourBody').textContent = step.body;
+    $('tourCallout').textContent = step.callout;
+    $('tourCount').textContent = (tourIndex+1)+' / '+tourSteps.length;
+    $('tourProgress').innerHTML = tourSteps.map((item,index) =>
+      '<span class="'+(index<=tourIndex?'active':'')+'"></span>'
+    ).join('');
+    $('tourPrev').disabled = tourIndex === 0;
+    $('tourNext').textContent = tourIndex === tourSteps.length-1 ? 'Finish tour' : 'Next';
+  }
+
+  function openTour() {
+    tourIndex=0;
+    renderTour();
+    $('tourDialog').classList.remove('hidden');
+    $('closeTour').focus();
+  }
+
+  function closeTour() {
+    $('tourDialog').classList.add('hidden');
+    $('startTour').focus();
+  }
+
+  function changeTour(delta) {
+    const next=tourIndex+delta;
+    if (next<0) return;
+    if (next>=tourSteps.length) return closeTour();
+    tourIndex=next;
+    renderTour();
+  }
+
+  $('startTour').addEventListener('click',openTour);
+  $('closeTour').addEventListener('click',closeTour);
+  $('tourDialog').addEventListener('click',event=>{
+    if(event.target===$('tourDialog')) closeTour();
+  });
+  $('tourPrev').addEventListener('click',()=>changeTour(-1));
+  $('tourNext').addEventListener('click',()=>changeTour(1));
+  $('tourExplore').addEventListener('click',()=>{
+    const step=tourSteps[tourIndex];
+    if(!(roleTabs[previewRole]||[]).includes(step.tab)){
+      toast('That area is not visible in the '+previewRole+' role preview. Switch to Elder to explore all sections.');
+      return;
+    }
+    switchView(step.tab);
+    closeTour();
+  });
+  document.addEventListener('keydown',event=>{
+    if($('tourDialog').classList.contains('hidden')) return;
+    if(event.key==='Escape') closeTour();
+    if(event.key==='ArrowRight') changeTour(1);
+    if(event.key==='ArrowLeft') changeTour(-1);
+  });
+
+  $('rolePreview').addEventListener('change',event=>{
+    previewRole=event.target.value;
+    render();
+    toast('Now previewing '+previewRole+' access. This is a UI demo, not a live account permission change.');
+  });
+
   function renderStats() {
     const weekStart = startOfDay(now());
     weekStart.setDate(weekStart.getDate() - 6);
