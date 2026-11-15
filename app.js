@@ -98,13 +98,13 @@
 
   state.reminderLog ||= [];
   state.alertedDoseKeys ||= [];
-  let voiceEnabled = false;
+  let voiceEnabled = true;
   let audioContext = null;
   let alarmInterval = null;
   let activeAlarm = null;
   let alarmMuted = false;
   let speechRecognition = null;
-  try { voiceEnabled = localStorage.getItem('vayoloop_voice_enabled') === '1'; } catch { voiceEnabled = false; }
+  try { voiceEnabled = localStorage.getItem('vayoloop_voice_enabled') !== '0'; } catch { voiceEnabled = true; }
 
   function save() {
     if (memoryOnly) return;
@@ -156,8 +156,8 @@
       oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(880, start);
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.075, start + 0.025);
-      gain.gain.setValueAtTime(0.075, start + 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.16, start + 0.025);
+      gain.gain.setValueAtTime(0.16, start + 0.18);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
       oscillator.connect(gain);
       gain.connect(audioContext.destination);
@@ -310,7 +310,7 @@
   }
 
   function evaluateVoiceReminders() {
-    if (!voiceEnabled) return;
+    if (!voiceEnabled || document.hidden) return;
     const current = now();
     const today = startOfDay(current);
     let stateChanged = false;
@@ -369,9 +369,8 @@
     if (audioReady && activeAlarm) playAlarmTone();
     updateVoiceControls();
     const hour = now().getHours();
-    const greeting = (hour<12?'Good morning':hour<17?'Good afternoon':'Good evening') + ', Asha. I am VayoLoop, your care companion.';
-    const briefing = healthBriefing();
-    const speechReady = speak(greeting + ' ' + briefing);
+    const greeting = 'Hi Asha, welcome back.';
+    const speechReady = speak(greeting);
     if (!speechReady) voiceStatus('Voice is enabled, but this browser cannot provide speech. Your sample records remain available on screen.', false);
     else if (!audioReady) voiceStatus('Spoken updates are enabled. The sound alert may need another tap if the browser suspends audio.', true);
     evaluateVoiceReminders();
@@ -963,21 +962,34 @@
     toast(enabled?'Larger text enabled.':'Standard text size restored.');
   });
 
-  const greetHour=now().getHours();
-  $('greeting').textContent=(greetHour<12?'Good morning':greetHour<17?'Good afternoon':'Good evening')+', Asha';
+  $('greeting').textContent='Hi Asha, welcome back.';
   if (!memoryOnly) { try { if (!localStorage.getItem(STORAGE_KEY)) save(); } catch { memoryOnly = true; } }
   render();
   updateVoiceControls();
+  let welcomeSpoken = false;
   if (voiceEnabled) {
-    voiceStatus('Your voice preference is remembered. VayoLoop is preparing your spoken welcome.',true);
+    voiceStatus('Your welcome and reminders are ready. Browser audio may need the first tap anywhere on this page.',true);
     window.setTimeout(() => {
-      const hour = now().getHours();
-      const welcome = (hour<12?'Good morning':hour<17?'Good afternoon':'Good evening') + ', Asha. Welcome back to VayoLoop. ';
-      speak(welcome + healthBriefing());
+      welcomeSpoken = speak('Hi Asha, welcome back.');
       evaluateVoiceReminders();
-    }, 900);
+    }, 650);
   } else {
-    voiceStatus('Voice is off. Enable it once to hear the spoken welcome and reminders.',false);
+    voiceStatus('Voice companion is paused. Resume voice & sound to hear reminders.',false);
   }
+  // A normal first tap anywhere on the page unlocks browser audio; no greeting button is required.
+  window.addEventListener('pointerdown', async () => {
+    if (!voiceEnabled) return;
+    try {
+      const ready = await unlockAudio();
+      if (ready && activeAlarm) playAlarmTone();
+      if (!welcomeSpoken) {
+        welcomeSpoken = speak('Hi Asha, welcome back.');
+      }
+      updateVoiceControls();
+    } catch {}
+  }, {once:true});
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && voiceEnabled) evaluateVoiceReminders();
+  });
   window.setInterval(evaluateVoiceReminders,15000);
 })();
