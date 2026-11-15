@@ -50,7 +50,7 @@ Only health observations and prescription records currently persist. Medicines, 
 - **Prescription library:** store PDF or image copies, metadata and the original file in the shared demo workspace; download or delete demo files. This prototype does not run OCR or medicine-disease checks.
 - **Health record book:** timestamped readings with source labels, personal comparisons and CSV / JSON export. Readings persist in the shared demo workspace.
 - **Daily wellbeing check-in:** simple family check-in for meals, water, mood and optional notes; not a clinical assessment.
-- **Health journal:** longitudinal user-entered or sample observations with personal comparisons; no diagnosis or universal health score.
+- **Health journal:** timestamped observations, chronological charts, per-metric/unit trend summaries, latest-vs-previous comparisons, and rolling averages (latest three entries vs the preceding three when enough history exists). Trend direction describes recorded numbers only; it is not a diagnosis or a judgement that a value is medically good or bad.
 - **Appointments:** create and complete appointment records.
 - **Family circle:** sample family roles, trusted emergency contacts, shared household tasks and contact priority.
 - **Emergency centre:** demonstrate possible-fall confirmation, manual SOS, simulated family escalation, contact acknowledgements and resolution history.
