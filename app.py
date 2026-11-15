@@ -485,7 +485,7 @@ elif section == "Prescription library":
                 if len(file_bytes) > 10 * 1024 * 1024:
                     st.error("This file is larger than 10 MB. Choose a smaller copy.")
                 else:
-                    safe_name = prescription_file.name.replace("/", "_").replace("\\\\", "_").replace("\\x00", "")
+                    safe_name = prescription_file.name.replace("/", "_").replace(chr(92), "_").replace(chr(0), "")
                     workspace.setdefault("prescriptions", []).insert(0, {
                         "id": f"rx-{int(datetime.now().timestamp() * 1000)}",
                         "document_label": document_label.strip() or safe_name,
@@ -857,11 +857,12 @@ elif section == "Care Passport":
     st.subheader("Care Passport")
     st.caption("A portable, date-stamped handoff view that brings the care circle's key records together. This demo uses fictional, session-only data.")
     passport = build_care_passport(workspace, profile_name="Asha Rao")
-    p1, p2, p3, p4 = st.columns(4)
+    p1, p2, p3, p4, p5 = st.columns(5)
     p1.metric("Active medicines", passport["counts"]["active_medicines"])
-    p2.metric("Health observations", passport["counts"]["health_observations_included"])
-    p3.metric("Appointments", passport["counts"]["appointments"])
-    p4.metric("Trusted contacts", passport["counts"]["trusted_contacts"])
+    p2.metric("Prescription files", passport["counts"]["prescription_documents"])
+    p3.metric("Health observations", passport["counts"]["health_observations_included"])
+    p4.metric("Appointments", passport["counts"]["appointments"])
+    p5.metric("Trusted contacts", passport["counts"]["trusted_contacts"])
 
     with st.container(border=True):
         st.markdown("**Medication plan**")
@@ -870,6 +871,24 @@ elif section == "Care Passport":
             for item in passport["medicines"]
         ] or [{"Medicine": "No medicine records"}])
         st.caption("A dose report is self-reported. It does not prove ingestion or authorise a prescription change.")
+
+    with st.container(border=True):
+        st.markdown("**Saved prescription documents**")
+        if passport["prescriptions"]:
+            st.table([
+                {
+                    "Document": item["document_label"],
+                    "Date": item["prescribed_on"],
+                    "Clinic": item["clinic"] or "Not entered",
+                    "Prescriber": item["clinician"] or "Not entered",
+                    "Original file": item["file_name"],
+                    "Availability": "Download in Prescription library",
+                }
+                for item in passport["prescriptions"]
+            ])
+        else:
+            st.caption("No prescription documents saved yet.")
+        st.caption("The Care Passport includes document details, not the binary file. Open Prescription library to download the original upload.")
 
     with st.container(border=True):
         st.markdown("**Recent health observations**")
