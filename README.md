@@ -24,24 +24,19 @@ No secrets are required for the synthetic-data demo. Do not add real patient inf
 
 ## Private health and prescription records (Supabase)
 
-The VayoLoop Supabase project provides authenticated persistence for **health observations** and **prescription documents**:
+The VayoLoop Supabase project provides persistent storage for **health observations** and **prescription documents** in one shared public demo workspace. There is deliberately no account, sign-in or sign-up interface at this stage:
 
 - Health readings are stored in `public.health_observations`.
 - Prescription details are stored in `public.prescription_records`; original PDFs/images are stored in the private `vayoloop-prescriptions` Storage bucket.
-- The first successful sign-in creates a care profile and owner membership.
-- Existing row-level security and Storage policies restrict access by care-circle membership and role. Family members can read records; only owners, elders and caregivers can add or manage prescriptions.
-- The app uses a **publishable key only**. Never put a Supabase service-role key in Streamlit secrets or this repository.
+- Anyone visiting the public demo shares the same synthetic workspace.
+- Row-level security restricts the public API key to one fixed demo workspace. Prescription files stay in a non-public Storage bucket and are fetched through the app.
+- The app uses a **publishable key only**. Never put a Supabase service-role key in this public repository.
 
-### Configure Streamlit Community Cloud secrets
+### No account setup required
 
-In the Streamlit app dashboard, open **App settings → Secrets** and add:
+The public project URL and publishable key are configured in the app. Open the deployed app and test the Health Journal and Prescription Library directly — no sign-in or account creation is required.
 
-```toml
-SUPABASE_URL = "https://vhugnytmbjktbhlspgyx.supabase.co"
-SUPABASE_PUBLISHABLE_KEY = "sb_publishable_... paste the VayoLoop project's publishable key ..."
-```
-
-Save the secrets and reboot the app. Use the project's **publishable** key from Supabase Project Settings / API Keys. Do not use a service-role or secret key. Users can then create an account or sign in from the app's sidebar. Hosted Supabase email confirmation may be required before first sign-in.
+**Important:** this is a shared public demo. Anyone using it can view or change its saved demo records. Use fictional test data only; never upload real patient information.
 
 Only health observations and prescription records currently persist. Medicines, appointments, family tasks, connected devices, voice reminders and emergency workflows are still synthetic/session-only demo features.
 
@@ -52,8 +47,8 @@ Only health observations and prescription records currently persist. Medicines, 
 - **Elder-first home:** short greeting, daily overview, larger-text option and simple navigation.
 - **Voice companion:** optional one-time browser audio enablement; attempts a spoken welcome and checks scheduled sample medicine and appointment reminders while the page remains open. Reminder phrases include English, Hindi, Kannada, Gujarati, Marathi, Tamil, Telugu and Bengali.
 - **Medication journey:** sample medicine records, scheduled times, self-reported dose events, overdue-unconfirmed state, refill planning and a traceable activity log.
-- **Prescription library:** store PDF or image copies, metadata and the original file in private Supabase Storage when signed in; download or delete with care-circle permissions. Without sign-in it remains session-only. This prototype does not run OCR or medicine-disease checks.
-- **Health record book:** timestamped readings with source labels, personal comparisons and CSV / JSON export. Signed-in observations persist in Supabase; demo observations remain session-only.
+- **Prescription library:** store PDF or image copies, metadata and the original file in the shared demo workspace; download or delete demo files. This prototype does not run OCR or medicine-disease checks.
+- **Health record book:** timestamped readings with source labels, personal comparisons and CSV / JSON export. Readings persist in the shared demo workspace.
 - **Daily wellbeing check-in:** simple family check-in for meals, water, mood and optional notes; not a clinical assessment.
 - **Health journal:** longitudinal user-entered or sample observations with personal comparisons; no diagnosis or universal health score.
 - **Appointments:** create and complete appointment records.
@@ -76,7 +71,7 @@ This is a **synthetic-data hackathon prototype**, not a medical device, care pro
 - Voice phrases depend on speech voices installed on the device; language coverage varies.
 - Streamlit session state remains temporary for medicines, appointments, family tasks, connected devices, wellbeing check-ins and emergency simulations. Supabase uses authentication, row-level security and a private prescription bucket for the two persistent record types, but this hackathon prototype is not a production clinical-record service.
 - Care Passport downloads are generated from the current demo session only; they are not saved to a server or sent to a clinician or family member. The export should only be shared with the elder's permission.
-- Signed-in prescription files and health observations persist in Supabase. Unsigned demo documents remain in session memory. Medicines and other care workflows remain session-only. Do not upload real patient records to this public hackathon prototype.
+- Health observations and prescription records persist in one shared public demo workspace. Anyone using the app may view or change them. Medicines and other care workflows remain session-only. Never upload real patient records to this public hackathon prototype.
 - A dose report is self-reported and is not proof of ingestion. The app never changes a prescription, recommends a dose or decides treatment.
 - Health trends describe entered sample values only. They do not diagnose or infer causes.
 - Device compatibility depends on individual provider APIs and permissions; VayoLoop does not connect to every smartwatch or appliance.
