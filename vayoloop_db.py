@@ -7,15 +7,19 @@ used or embedded in the application.
 """
 from __future__ import annotations
 
+import csv
+import io
 import re
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from math import isfinite
 from typing import Any
 
 DEMO_WORKSPACE_ID = "00000000-0000-4000-8000-000000000001"
 BUCKET_NAME = "vayoloop-prescriptions"
 MAX_PRESCRIPTION_BYTES = 10 * 1024 * 1024
+MAX_HEALTH_IMPORT_BYTES = 2 * 1024 * 1024
+MAX_HEALTH_IMPORT_ROWS = 500
 _DEMO_STORAGE_PATH_RE = re.compile(
     rf"^{re.escape(DEMO_WORKSPACE_ID)}/[0-9a-f]{{32}}_[A-Za-z0-9._-]{{1,120}}$"
 )
@@ -94,19 +98,14 @@ def list_health_observations(client: Any) -> list[dict[str, Any]]:
     return [map_health_record(row) for row in (getattr(result, "data", None) or [])]
 
 
-def save_health_observation(
-    client: Any,
+def normalise_health_observation(
     metric: str,
     value: float,
     unit: str,
     observed_at: str,
     source: str,
-) -> None:
-    """Validate and save a non-negative, timestamped demo observation.
-
-    This checks data integrity only; it deliberately does not apply clinical
-    reference ranges or interpret whether a measurement is medically healthy.
-    """
+) -> dict[str, Any]:
+    """Validate and normalise one timestamped observation without clinical interpretation."""
     metric_value = str(metric or "").strip()
     unit_value = str(unit or "").strip()
     source_value = str(source or "Entered by user").strip() or "Entered by user"
@@ -129,18 +128,162 @@ def save_health_observation(
         timestamp = datetime.fromisoformat(str(observed_at).replace("Z", "+00:00"))
     except (TypeError, ValueError, OverflowError) as exc:
         raise ValueError("Observation time must be a valid ISO timestamp.") from exc
-    if timestamp.tzinfo is None:
+    if timestamp.tzinfo is None or timestamp.utcoffset() is None:
         raise ValueError("Observation time must include a timezone.")
 
-    client.table("vayoloop_demo_health_observations").insert({
-        "workspace_id": DEMO_WORKSPACE_ID,
+    return {
         "metric": metric_value,
         "value": numeric_value,
         "unit": unit_value,
         "observed_at": timestamp.isoformat(timespec="seconds"),
         "source": source_value,
+    }
+
+
+def _health_observation_fingerprint(record: dict[str, Any]) -> tuple[str, float, str, str]:
+    """Return a stable key so repeated imports do not duplicate the same reading."""
+    normalised = normalise_health_observation(
+        record.get("metric"),
+        record.get("value"),
+        record.get("unit", ""),
+        record.get("observed_at"),
+        record.get("source", "Not recorded"),
+    )
+    observed = datetime.fromisoformat(normalised["observed_at"]).astimezone(timezone.utc)
+    return (
+        normalised["metric"].casefold(),
+        normalised["value"],
+        normalised["unit"].casefold(),
+        observed.isoformat(timespec="seconds"),
+    )
+
+
+def parse_health_observations_csv(
+    payload: bytes,
+    existing_records: list[dict[str, Any]] | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Parse a bounded wearable export with explicit fields and duplicate suppression.
+
+    Required columns: metric,value,unit,observed_at. Optional column: source.
+    Timestamps must be ISO-8601 values with a timezone. No clinical ranges are applied.
+    """
+    if not isinstance(payload, bytes) or not payload:
+        raise ValueError("Choose a non-empty CSV file.")
+    if len(payload) > MAX_HEALTH_IMPORT_BYTES:
+        raise ValueError("The CSV file must be 2 MB or smaller.")
+
+    try:
+        decoded = payload.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValueError("The CSV must use UTF-8 text encoding.") from exc
+
+    try:
+        reader = csv.DictReader(io.StringIO(decoded))
+        headers = {
+            str(header or "").strip().casefold(): header
+            for header in (reader.fieldnames or [])
+            if str(header or "").strip()
+        }
+        required = {"metric", "value", "unit", "observed_at"}
+        missing = sorted(required - set(headers))
+        if missing:
+            raise ValueError("CSV is missing required column(s): " + ", ".join(missing))
+
+        seen: set[tuple[str, float, str, str]] = set()
+        for record in existing_records or []:
+            try:
+                seen.add(_health_observation_fingerprint(record))
+            except (TypeError, ValueError, OverflowError):
+                continue
+
+        observations: list[dict[str, Any]] = []
+        duplicates = 0
+        row_count = 0
+        for line_number, raw in enumerate(reader, start=2):
+            if not raw or not any(str(value or "").strip() for value in raw.values()):
+                continue
+            row_count += 1
+            if row_count > MAX_HEALTH_IMPORT_ROWS:
+                raise ValueError(f"The CSV may contain no more than {MAX_HEALTH_IMPORT_ROWS} data rows.")
+
+            def field(name: str, default: str = "") -> str:
+                original_header = headers.get(name)
+                value = raw.get(original_header) if original_header else None
+                return str(value if value is not None else default).strip()
+
+            try:
+                observation = normalise_health_observation(
+                    field("metric"),
+                    field("value"),
+                    field("unit"),
+                    field("observed_at"),
+                    field("source", "Imported wearable CSV") or "Imported wearable CSV",
+                )
+                fingerprint = _health_observation_fingerprint(observation)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError(f"CSV row {line_number}: {exc}") from exc
+
+            if fingerprint in seen:
+                duplicates += 1
+                continue
+            seen.add(fingerprint)
+            observations.append(observation)
+
+    except csv.Error as exc:
+        raise ValueError("The CSV file could not be read. Check its delimiter and quoting.") from exc
+
+    if row_count == 0:
+        raise ValueError("The CSV contains no observation rows.")
+    return observations, duplicates
+
+
+def save_health_observation(
+    client: Any,
+    metric: str,
+    value: float,
+    unit: str,
+    observed_at: str,
+    source: str,
+) -> None:
+    """Validate and save one non-negative, timestamped observation."""
+    observation = normalise_health_observation(metric, value, unit, observed_at, source)
+    client.table("vayoloop_demo_health_observations").insert({
+        "workspace_id": DEMO_WORKSPACE_ID,
+        **observation,
         "context": {},
     }).execute()
+
+
+def save_health_observations(
+    client: Any,
+    observations: list[dict[str, Any]],
+) -> None:
+    """Validate every row before inserting a batch of observations in one database call."""
+    if not observations:
+        raise ValueError("There are no new observations to import.")
+    if len(observations) > MAX_HEALTH_IMPORT_ROWS:
+        raise ValueError(f"An import may contain no more than {MAX_HEALTH_IMPORT_ROWS} observations.")
+
+    payloads = []
+    for index, item in enumerate(observations, start=1):
+        try:
+            payload = normalise_health_observation(
+                item.get("metric"),
+                item.get("value"),
+                item.get("unit"),
+                item.get("observed_at"),
+                item.get("source", "Imported wearable CSV"),
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"Observation {index}: {exc}") from exc
+        payloads.append({
+            "workspace_id": DEMO_WORKSPACE_ID,
+            **payload,
+            "context": {},
+        })
+
+    # Supabase/PostgREST inserts the validated batch as one transaction.
+    client.table("vayoloop_demo_health_observations").insert(payloads).execute()
 
 
 def list_prescription_records(client: Any) -> list[dict[str, Any]]:
