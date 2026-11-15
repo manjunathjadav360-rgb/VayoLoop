@@ -144,7 +144,7 @@ flowchart TD
 3. **Batch import:** all rows are validated before the database insert is called. Duplicate detection is performed before confirmation. A failed insert is surfaced to the UI; it is not reported as a successful import.
 4. **Output encoding:** user-controlled text is escaped for HTML and JSON embedded in scripts; exported Care Passport HTML escapes cell values.
 5. **Clinical boundary:** dose reports are self-reported; numerical trends and completeness checks are administrative displays only. No diagnosis, prescription authenticity check, medicine-condition matching, dose recommendation or treatment change is performed.
-6. **Device and emergency boundary:** CSV file import is user initiated; there is no live Bluetooth/vendor-cloud integration. Device events, fall alerts, family notifications and SOS are simulations. The app does not dial 112 or dispatch help.
+6. **Device and emergency boundary:** CSV file import is user initiated and is not a Bluetooth/vendor-cloud integration. Device events, fall alerts, family notifications and SOS are simulations. The app does not dial 112 or dispatch help.
 7. **Deployment boundary:** GitHub Pages publishes the legacy static preview after CI. Streamlit Community Cloud is a separate deployment and must be checked independently.
 
 ### Reproducible evidence
