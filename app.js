@@ -78,6 +78,8 @@
 
   let state;
   let memoryOnly = false;
+  let previewRole = "elder";
+  let tourIndex = 0;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     state = saved ? JSON.parse(saved) : seedState();
@@ -119,6 +121,47 @@
   function todayReports() {
     const start = startOfDay(now()).getTime();
     return state.doseReports.filter(report => new Date(report.at).getTime() >= start);
+  }
+
+  const roleTabs = {
+    elder:['overview','medications','health','appointments','devices','care'],
+    caregiver:['overview','medications','health','appointments','devices','care'],
+    family:['overview','medications','health','appointments','care'],
+    viewer:['overview']
+  };
+  const canEditDemo = () => previewRole === 'elder' || previewRole === 'caregiver';
+  const canAdminDemo = () => previewRole === 'elder';
+
+  function applyRoleView() {
+    const allowed = roleTabs[previewRole] || roleTabs.elder;
+    document.querySelectorAll('[data-tab]').forEach(button => {
+      button.classList.toggle('hidden', !allowed.includes(button.dataset.tab));
+    });
+    const active = document.querySelector('[data-tab].active')?.dataset.tab;
+    if (active && !allowed.includes(active)) switchView('overview');
+    ['medForm','healthForm','apptForm','deviceForm'].forEach(id => {
+      $(id).classList.toggle('hidden', !canEditDemo());
+    });
+    $('inviteForm').classList.toggle('hidden', !canAdminDemo());
+    $('simulateSync').classList.toggle('hidden', !canEditDemo());
+    $('simulateAlert').classList.toggle('hidden', !canEditDemo());
+    $('rolePreview').value = previewRole;
+  }
+
+  function renderMedicationJourney() {
+    const active = state.meds.filter(m => m.active);
+    const recentReports = state.doseReports.filter(report => new Date(report.at) >= new Date(Date.now()-7*24*60*60*1000));
+    const scheduled = active.filter(m => /^\d{2}:\d{2}$/.test(m.time)).length;
+    const nextReview = state.appointments.some(item => item.status === 'scheduled' && new Date(item.scheduledAt) >= now());
+    const stages = [
+      {title:'Care plan recorded',count:active.length+' items',detail:'Sample medication records are stored.',done:active.length>0},
+      {title:'Daily routine mapped',count:scheduled+' time slots',detail:'Each active record has a routine time.',done:scheduled>0},
+      {title:'Dose reports captured',count:recentReports.length+' reports',detail:'Reports are self-entered and traceable.',done:recentReports.length>0},
+      {title:'Care review planned',count:nextReview?'On calendar':'Not scheduled',detail:'A follow-up appointment gives the circle a review point.',done:nextReview}
+    ];
+    $('medJourney').innerHTML = stages.map((stage,index) =>
+      '<div class="journey-step '+(stage.done?'':'pending')+'"><small>STEP 0'+(index+1)+'</small><strong>'+esc(stage.title)+'</strong><span class="step-count">'+esc(stage.count)+'</span><small>'+esc(stage.detail)+'</small></div>'
+    ).join('');
   }
 
   function renderStats() {
