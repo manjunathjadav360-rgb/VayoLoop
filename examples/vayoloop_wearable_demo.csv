@@ -1,0 +1,8 @@
+metric,value,unit,observed_at,source
+Daily steps,3200,steps,2026-11-12T10:00:00+05:30,Demo wearable CSV
+Daily steps,3550,steps,2026-11-13T10:00:00+05:30,Demo wearable CSV
+Daily steps,3980,steps,2026-11-14T10:00:00+05:30,Demo wearable CSV
+Sleep duration,7.2,hours,2026-11-12T07:00:00+05:30,Demo wearable CSV
+Sleep duration,7.0,hours,2026-11-13T07:00:00+05:30,Demo wearable CSV
+Resting heart rate,72,bpm,2026-11-12T08:30:00+05:30,Demo wearable CSV
+Resting heart rate,74,bpm,2026-11-13T08:30:00+05:30,Demo wearable CSV
