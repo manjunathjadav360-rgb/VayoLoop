@@ -4,6 +4,7 @@ from pathlib import Path
 from vayoloop_db import (
     DEMO_WORKSPACE_ID,
     detect_prescription_mime,
+    list_health_observations,
     map_health_record,
     map_prescription_record,
     sanitise_filename,
@@ -34,6 +35,59 @@ class VayoLoopDatabaseMappingTests(unittest.TestCase):
         self.assertEqual(mapped["id"], "health-1")
         self.assertEqual(mapped["value"], 122.5)
         self.assertEqual(mapped["unit"], "mmHg")
+
+    def test_persisted_health_rows_are_flagged_without_losing_the_record(self):
+        base = {
+            "id": "health-invalid",
+            "metric": "Daily steps",
+            "value": 100,
+            "unit": "steps",
+            "observed_at": "2026-11-15T08:30:00+05:30",
+            "source": "Example import",
+            "context": {},
+        }
+        invalid_rows = [
+            {**base, "value": True},
+            {**base, "value": -1},
+            {**base, "observed_at": "2026-11-15T08:30:00"},
+        ]
+        for row in invalid_rows:
+            with self.subTest(row=row):
+                mapped = map_health_record(row)
+                self.assertIsNotNone(mapped["validation_issue"])
+                self.assertEqual(mapped["id"], "health-invalid")
+
+    def test_health_listing_keeps_invalid_rows_visible_and_marks_them(self):
+        from types import SimpleNamespace
+
+        valid = {
+            "id": "health-valid", "metric": "Sleep", "value": 7.0,
+            "unit": "hours", "observed_at": "2026-11-15T08:00:00+05:30",
+            "source": "Example import", "context": {},
+        }
+        invalid = {**valid, "id": "health-invalid", "value": True}
+
+        class Query:
+            def select(self, *_fields):
+                return self
+            def eq(self, *_args):
+                return self
+            def order(self, *_args, **_kwargs):
+                return self
+            def limit(self, *_args):
+                return self
+            def execute(self):
+                return SimpleNamespace(data=[valid, invalid])
+
+        class Client:
+            def table(self, _name):
+                return Query()
+
+        rows = list_health_observations(Client())
+        self.assertEqual(len(rows), 2)
+        self.assertIsNone(rows[0]["validation_issue"])
+        self.assertIn("boolean", rows[1]["validation_issue"].lower())
+        self.assertIs(rows[1]["value"], True)
 
     def test_prescription_row_is_shared_demo_record(self):
         mapped = map_prescription_record({

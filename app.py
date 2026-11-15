@@ -18,6 +18,7 @@ from vayoloop_core import (
     escalate_emergency,
     india_now,
     medication_state,
+    parse_aware_india_datetime,
     record_dose,
     seed_demo_state,
 )
@@ -235,11 +236,13 @@ def voice_companion_html(meds: list[dict], appointments: list[dict], language: s
     """
 
 
-def fmt_datetime(value: str) -> str:
-    try:
-        return datetime.fromisoformat(value).astimezone(INDIA_TZ).strftime("%a, %d %b · %I:%M %p")
-    except (ValueError, TypeError):
+def fmt_datetime(value: str | None) -> str:
+    if not value:
         return "Time not set"
+    parsed = parse_aware_india_datetime(value)
+    if parsed is None:
+        return "Time needs review"
+    return parsed.strftime("%a, %d %b · %I:%M %p")
 
 
 def health_records_csv(records: list[dict]) -> str:
@@ -367,7 +370,20 @@ with st.sidebar:
     st.caption("Health readings and prescription files persist in the shared demo workspace. Other sections are local demo data.")
 
 if st.session_state.large_text:
-    st.markdown("<style>html{font-size:115%}p,label,button{font-size:1.03rem!important}</style>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <style>
+        html { font-size: 118%; }
+        p, label, button, .stCaption, [data-testid="stMetricLabel"] {
+            font-size: 1.05rem !important;
+        }
+        input, textarea, [role="combobox"], [data-testid="stMetricValue"] {
+            font-size: 1.05rem !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 workspace = st.session_state.workspace
@@ -739,6 +755,7 @@ elif section == "Health journal":
                             "Value": f"{item['value']} {item['unit']}",
                             "Recorded at": fmt_datetime(item["observed_at"]),
                             "Source": item["source"],
+                            "Data quality": "Needs review" if item.get("validation_issue") else "Validated",
                         }
                         for item in sorted(workspace["health"], key=lambda x: x["observed_at"], reverse=True)
                     ],
@@ -746,6 +763,14 @@ elif section == "Health journal":
                     width="stretch",
                     height=320,
                 )
+                invalid_health_count = sum(
+                    1 for item in workspace["health"] if item.get("validation_issue")
+                )
+                if invalid_health_count:
+                    st.warning(
+                        f"{invalid_health_count} stored observation(s) need data-quality review. "
+                        "They remain visible but are excluded from numerical trend analysis."
+                    )
                 st.caption(
                     f"{len(workspace['health'])} observations in the shared demo workspace."
                     if cloud_active else

@@ -5,16 +5,16 @@ from datetime import datetime, timedelta
 from html import escape
 from typing import Any
 
-from vayoloop_core import INDIA_TZ, india_now, medication_state
+from vayoloop_core import INDIA_TZ, india_now, medication_state, parse_aware_india_datetime
 
 
 def _display_time(value: str | None) -> str:
     if not value:
         return "Not recorded"
-    try:
-        return datetime.fromisoformat(value).astimezone(INDIA_TZ).strftime("%d %b %Y, %I:%M %p IST")
-    except (TypeError, ValueError):
-        return str(value)
+    parsed = parse_aware_india_datetime(value)
+    if parsed is None:
+        return "Time zone missing or invalid · review source"
+    return parsed.strftime("%d %b %Y, %I:%M %p IST")
 
 
 def build_care_passport(
@@ -296,13 +296,7 @@ def analyse_handoff_completeness(
         }
 
     def parse_aware_timestamp(value: Any) -> datetime | None:
-        try:
-            parsed = datetime.fromisoformat(str(value or "").replace("Z", "+00:00"))
-        except (TypeError, ValueError, OverflowError):
-            return None
-        if parsed.tzinfo is None or parsed.utcoffset() is None:
-            return None
-        return parsed.astimezone(INDIA_TZ)
+        return parse_aware_india_datetime(value if isinstance(value, str) else None)
 
     def make_check(
         area: str,

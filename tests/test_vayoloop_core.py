@@ -9,6 +9,7 @@ from vayoloop_core import (
     create_emergency_event,
     escalate_emergency,
     medication_state,
+    parse_aware_india_datetime,
     record_dose,
     seed_demo_state,
 )
@@ -57,6 +58,14 @@ class VayoLoopCoreTests(unittest.TestCase):
         now = datetime(2026, 11, 15, 7, 59, tzinfo=INDIA_TZ)
         med = {"id": "m1", "time": "08:00"}
         self.assertEqual(medication_state(med, [], now), "Upcoming")
+
+    def test_aware_timestamp_parser_normalises_to_ist_and_rejects_naive_values(self):
+        parsed = parse_aware_india_datetime("2026-11-15T04:30:00Z")
+        self.assertEqual(parsed, datetime(2026, 11, 15, 10, 0, tzinfo=INDIA_TZ))
+        self.assertIsNone(parse_aware_india_datetime("2026-11-15T10:00:00"))
+        self.assertIsNone(parse_aware_india_datetime("not-a-time"))
+        self.assertIsNone(parse_aware_india_datetime(None))
+        self.assertIsNone(parse_aware_india_datetime("0001-01-01T00:00:00+14:00"))
 
     def test_seed_state_is_synthetic_and_has_india_timezone_dates(self):
         state = seed_demo_state(datetime(2026, 11, 15, 10, 0, tzinfo=INDIA_TZ))
@@ -111,10 +120,20 @@ class VayoLoopCoreTests(unittest.TestCase):
             {"metric": "Sleep", "unit": "hours", "value": 6.5,
              "observed_at": "not-a-date"},
         ]
-        records.append({
-            "metric": "Sleep", "unit": "hours", "value": True,
-            "observed_at": now.isoformat(),
-        })
+        records.extend([
+            {
+                "metric": "Sleep", "unit": "hours", "value": True,
+                "observed_at": now.isoformat(),
+            },
+            {
+                "metric": "Sleep", "unit": "hours", "value": -1,
+                "observed_at": now.isoformat(),
+            },
+            {
+                "metric": "Sleep", "unit": "hours", "value": 8,
+                "observed_at": "2026-11-15T09:00:00",
+            },
+        ])
         result = analyse_health_trends(records, now=now)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["count"], 1)

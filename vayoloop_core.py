@@ -13,6 +13,24 @@ def india_now() -> datetime:
     return datetime.now(INDIA_TZ)
 
 
+def parse_aware_india_datetime(value: str | None) -> datetime | None:
+    """Parse an ISO timestamp only when its timezone is explicit, then normalise to IST."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+
+    timestamp_text = value.strip()
+    if timestamp_text.endswith(("Z", "z")):
+        timestamp_text = timestamp_text[:-1] + "+00:00"
+
+    try:
+        parsed = datetime.fromisoformat(timestamp_text)
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed.astimezone(INDIA_TZ)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
 def iso_now(value: datetime | None = None) -> str:
     return (value or india_now()).isoformat(timespec="seconds")
 
@@ -174,16 +192,11 @@ def analyse_health_trends(
             continue
         try:
             value = float(raw_value)
-            observed = datetime.fromisoformat(
-                str(record.get("observed_at") or "").replace("Z", "+00:00")
-            )
         except (TypeError, ValueError, OverflowError):
             continue
-        if not isfinite(value):
+        observed = parse_aware_india_datetime(record.get("observed_at"))
+        if not isfinite(value) or value < 0 or observed is None:
             continue
-        if observed.tzinfo is None:
-            observed = observed.replace(tzinfo=INDIA_TZ)
-        observed = observed.astimezone(INDIA_TZ)
         grouped.setdefault((metric, unit), []).append({
             "value": value,
             "observed": observed,
