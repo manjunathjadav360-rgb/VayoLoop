@@ -305,12 +305,12 @@ class VayoLoopDatabaseMappingTests(unittest.TestCase):
 
     def test_wearable_csv_import_rejects_duplicate_headers_and_extra_row_values(self):
         duplicate_headers = (
-            b"metric,value,unit,observed_at,Metric\\n"
-            b"Daily steps,4100,steps,2026-11-15T08:00:00+05:30,Other\\n"
+            b"metric,value,unit,observed_at,Metric\n"
+            b"Daily steps,4100,steps,2026-11-15T08:00:00+05:30,Other\n"
         )
         extra_value = (
-            b"metric,value,unit,observed_at\\n"
-            b"Daily steps,4100,steps,2026-11-15T08:00:00+05:30,unexpected\\n"
+            b"metric,value,unit,observed_at\n"
+            b"Daily steps,4100,steps,2026-11-15T08:00:00+05:30,unexpected\n"
         )
         with self.assertRaisesRegex(ValueError, "duplicate column"):
             parse_health_observations_csv(duplicate_headers)
