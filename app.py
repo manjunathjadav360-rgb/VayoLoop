@@ -312,6 +312,16 @@ def connect_demo_database():
         return None
 
 
+if "workspace" not in st.session_state:
+    st.session_state.workspace = seed_demo_state()
+if "role" not in st.session_state:
+    st.session_state.role = "Elder"
+if "voice_language" not in st.session_state:
+    st.session_state.voice_language = "English (India)"
+if "large_text" not in st.session_state:
+    st.session_state.large_text = False
+
+
 inject_styles()
 
 cloud_client = connect_demo_database()
@@ -598,7 +608,7 @@ elif section == "Prescription library":
                         "uploaded_at": india_now().isoformat(),
                     })
                     add_event("Prescription document saved", safe_name)
-                    st.success("Demo file added to this session only. Sign in for private, persistent storage.")
+                    st.success("Demo file added to this temporary session only. Shared cloud storage is unavailable.")
                     st.rerun()
 
     saved_prescriptions = workspace.setdefault("prescriptions", [])
@@ -698,7 +708,7 @@ elif section == "Health journal":
                     height=320,
                 )
                 st.caption(
-                    f"{len(workspace['health'])} observations in your private account."
+                    f"{len(workspace['health'])} observations in the shared demo workspace."
                     if cloud_active else
                     f"{len(workspace['health'])} observations saved in this session."
                 )
