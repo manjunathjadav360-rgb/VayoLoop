@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [html, app, streamlit, architecture, readme, sampleCsv] = await Promise.all([
+const [html, app, streamlit, architecture, readme, sampleCsv, judgeEvidence] = await Promise.all([
   readFile(new URL('../index.html', import.meta.url), 'utf8'),
   readFile(new URL('../app.js', import.meta.url), 'utf8'),
   readFile(new URL('../app.py', import.meta.url), 'utf8'),
   readFile(new URL('../ARCHITECTURE.md', import.meta.url), 'utf8'),
   readFile(new URL('../README.md', import.meta.url), 'utf8'),
-  readFile(new URL('../examples/vayoloop_wearable_demo.csv', import.meta.url), 'utf8')
+  readFile(new URL('../examples/vayoloop_wearable_demo.csv', import.meta.url), 'utf8'),
+  readFile(new URL('../JUDGE_EVIDENCE.md', import.meta.url), 'utf8')
 ]);
 
 const ids = [...html.matchAll(/id="([^"]+)"/g)].map(match => match[1]);
@@ -104,6 +105,14 @@ console.log('VayoLoop demo, voice companion, interaction, safety and accessibili
 assert.match(streamlit, /Import a wearable \/ health-app export/, 'The Health Journal must expose the wearable CSV import');
 assert.match(streamlit, /parse_health_observations_csv/, 'The Streamlit UI must call the validated wearable CSV parser');
 assert.match(streamlit, /save_health_observations/, 'Wearable readings must be persisted with the validated batch-save function');
+
+assert.ok(readme.includes('JUDGE_EVIDENCE.md'), 'README must link the judging evidence map');
+for (const criterion of ['Code quality', 'Security and data integrity', 'Efficiency', 'Testing', 'Accessibility and usability', 'Problem-statement alignment']) {
+  assert.ok(judgeEvidence.includes(criterion), 'Judging evidence must cover: ' + criterion);
+}
+assert.match(judgeEvidence, /shared fictional workspace/, 'Judging evidence must disclose shared demo visibility');
+assert.match(judgeEvidence, /Simulated or not connected/, 'Judging evidence must distinguish live features from simulations');
+assert.match(judgeEvidence, /not a medical device/, 'Judging evidence must retain clinical and emergency boundaries');
 
 assert.match(architecture, /## Architecture and trust boundaries/, 'Architecture must explain component and trust boundaries');
 assert.match(architecture, /### Component and responsibility map/, 'Architecture must show module responsibilities');
