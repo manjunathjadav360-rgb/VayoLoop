@@ -22,12 +22,12 @@ The Streamlit application entry point is **`app.py`**.
 No secrets are required for the synthetic-data demo. Do not add real patient information or credentials to this public repository.
 
 
-## Private health and prescription records (Supabase)
+## Persistent health and prescription records (Supabase)
 
 The VayoLoop Supabase project provides persistent storage for **health observations** and **prescription documents** in one shared public demo workspace. There is deliberately no account, sign-in or sign-up interface at this stage:
 
-- Health readings are stored in `public.health_observations`.
-- Prescription details are stored in `public.prescription_records`; original PDFs/images are stored in the private `vayoloop-prescriptions` Storage bucket.
+- Health readings are stored in `public.vayoloop_demo_health_observations`.
+- Prescription details are stored in `public.vayoloop_demo_prescriptions`; original PDFs/images are stored in the private `vayoloop-prescriptions` Storage bucket.
 - Anyone visiting the public demo shares the same synthetic workspace.
 - Row-level security restricts the public API key to one fixed demo workspace. Prescription files stay in a non-public Storage bucket and are fetched through the app.
 - The app uses a **publishable key only**. Never put a Supabase service-role key in this public repository.
