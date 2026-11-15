@@ -59,6 +59,21 @@ def build_care_passport(
             "source": reading.get("source", "Not recorded"),
         })
 
+    prescriptions = []
+    for item in sorted(workspace.get("prescriptions", []), key=lambda value: value.get("uploaded_at", ""), reverse=True):
+        prescriptions.append({
+            "document_label": item.get("document_label", "Prescription document"),
+            "file_name": item.get("file_name", "Document"),
+            "prescribed_on": item.get("prescribed_on", "Not recorded"),
+            "clinic": item.get("clinic", ""),
+            "clinician": item.get("clinician", ""),
+            "condition_as_written": item.get("condition_as_written", ""),
+            "notes": item.get("notes", ""),
+            "file_size_bytes": item.get("file_size_bytes", 0),
+            "uploaded_at_display": _display_time(item.get("uploaded_at")),
+            "storage_note": "Original file available only in the active demo session",
+        })
+
     appointments = []
     for item in sorted(workspace.get("appointments", []), key=lambda value: value.get("when", "")):
         appointments.append({
@@ -137,6 +152,7 @@ def build_care_passport(
             "or emergency response record. Dose reports are self-reported and are not proof of ingestion."
         ),
         "medicines": medicines,
+        "prescriptions": prescriptions,
         "dose_reports": dose_reports,
         "health_observations": health_observations,
         "appointments": appointments,
@@ -148,6 +164,7 @@ def build_care_passport(
         "counts": {
             "medicine_records": len(medicines),
             "active_medicines": sum(1 for item in medicines if item["active"]),
+            "prescription_documents": len(prescriptions),
             "health_observations_included": len(health_observations),
             "appointments": len(appointments),
             "trusted_contacts": len(care_circle),
@@ -175,6 +192,7 @@ def render_care_passport_html(snapshot: dict[str, Any]) -> str:
         for x in snapshot["medicines"]
     ]
     doses = [[x["medicine"], x["reported_at_display"], x["source"]] for x in snapshot["dose_reports"]]
+    prescriptions = [[x["document_label"], x["prescribed_on"], x["clinic"], x["clinician"], x["file_name"], x["storage_note"]] for x in snapshot.get("prescriptions", [])]
     health = [[x["metric"], f'{x["value"]} {x["unit"]}', x["observed_at_display"], x["source"]] for x in snapshot["health_observations"]]
     appointments = [[x["visit"], x["provider"], x["when_display"], x["status"], x["note"]] for x in snapshot["appointments"]]
     contacts = [[x["priority"], x["name"], x["relationship"]] for x in snapshot["care_circle"]]
@@ -193,6 +211,7 @@ def render_care_passport_html(snapshot: dict[str, Any]) -> str:
 
     sections = [
         ("Medication plan", table(["Medicine", "Label / strength", "Scheduled", "Current status", "Approx. supply units"], meds)),
+        ("Prescription documents", table(["Document", "Prescription date", "Clinic", "Prescriber", "File", "Availability"], prescriptions)),
         ("Recent dose reports", table(["Medicine", "Reported at", "Record source"], doses)),
         ("Recent health observations", table(["Observation", "Recorded value", "Observed at", "Source"], health)),
         ("Appointments", table(["Visit", "Provider", "When", "Status", "Note"], appointments)),
