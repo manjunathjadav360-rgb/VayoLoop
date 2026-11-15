@@ -1161,10 +1161,18 @@ elif section == "Care Passport":
             use_container_width=True,
             height=260,
         )
-        needs_details = sum(item["status"] == "Needs details" for item in handoff_checks)
+        review_area_count = sum(item["status"] == "Needs review" for item in handoff_checks)
+        review_item_count = sum(item["review_items"] for item in handoff_checks)
         ready_sections = sum(item["status"] == "Ready for review" for item in handoff_checks)
+        if review_item_count:
+            st.warning(
+                f"{review_item_count} administrative review item(s) across "
+                f"{review_area_count} area(s) need attention before sharing this handoff."
+            )
+        else:
+            st.success("No administrative review flags were detected in the records present.")
         st.caption(
-            f"{ready_sections} areas ready for review · {needs_details} areas need details. "
+            f"{ready_sections} areas ready for review · {review_area_count} areas need review. "
             "Empty sections may be left blank when they are not relevant."
         )
     if cloud_active:
