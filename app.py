@@ -1029,14 +1029,12 @@ elif section == "Care Passport":
         if cloud_active else
         "A portable, date-stamped handoff view built from fictional, session-only demo data."
     )
-    passport = build_care_passport(
-        workspace,
-        profile_name=(st.session_state.get("vayoloop_profile_name", "My care profile") if cloud_active else "Asha Rao"),
-    )
+    passport = build_care_passport(workspace, profile_name="Asha Rao")
     if cloud_active:
         passport["notice"] = (
-            "Mixed hackathon handoff: health observations and prescription metadata are read from the signed-in "
-            "private account. Other modules may contain fictional demo data. This is not a clinical record or diagnosis."
+            "Mixed hackathon handoff: health observations and prescription metadata are read from the shared "
+            "public demo workspace. Anyone using the public app can see these entries. Other modules may contain "
+            "fictional demo data. This is not a clinical record or diagnosis."
         )
     p1, p2, p3, p4, p5 = st.columns(5)
     p1.metric("Active medicines", passport["counts"]["active_medicines"])
