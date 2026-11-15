@@ -72,7 +72,7 @@ def inject_styles() -> None:
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
-        :root { --vl-ink:#20352e; --vl-muted:#718078; --vl-paper:#f5f2e9; --vl-green:#245b49; --vl-green2:#326e58; --vl-line:#e7e4da; --vl-card:#fffefa; --vl-soft:#eaf0e8; --vl-amber:#f7efdf; --vl-red:#f7e9e5; }
+        :root { --vl-ink:#20352e; --vl-muted:#5f6d64; --vl-paper:#f5f2e9; --vl-green:#245b49; --vl-green2:#326e58; --vl-line:#e7e4da; --vl-card:#fffefa; --vl-soft:#eaf0e8; --vl-amber:#f7efdf; --vl-red:#f7e9e5; }
         html, body, [class*="css"] { font-family:'DM Sans',sans-serif; }
         .stApp { background:var(--vl-paper); color:var(--vl-ink); }
         [data-testid="stHeader"] { background:rgba(245,242,233,.88); }
@@ -83,9 +83,9 @@ def inject_styles() -> None:
         h1 { font-weight:800; }
         h2 { font-size:1.28rem; font-weight:750; }
         h3 { font-size:1.02rem; font-weight:750; }
-        p, label, .stCaption { color:#64736a; }
+        p, label, .stCaption { color:#5f6d64; }
         [data-testid="stMetric"] { background:var(--vl-card); border:1px solid var(--vl-line); border-radius:12px; padding:14px 16px; box-shadow:0 4px 16px rgba(35,53,44,.035); }
-        [data-testid="stMetricLabel"] { color:#77847b; font-size:.76rem; font-weight:700; }
+        [data-testid="stMetricLabel"] { color:#5f6d64; font-size:.76rem; font-weight:700; }
         [data-testid="stMetricValue"] { color:var(--vl-green); font-family:'Manrope',sans-serif; font-weight:800; }
         [data-testid="stMetricDelta"] { font-size:.72rem; }
         [data-testid="stVerticalBlockBorderWrapper"] > div { border-color:var(--vl-line)!important; border-radius:13px!important; background:var(--vl-card); }
@@ -104,7 +104,7 @@ def inject_styles() -> None:
         .vl-pill.red { background:var(--vl-red); color:#954a40; }
         .vl-note { border-left:3px solid #73977d; background:#f0f3eb; padding:10px 12px; border-radius:0 8px 8px 0; color:#506458; font-size:.78rem; line-height:1.55; }
         .vl-danger { border-left-color:#ad5548; background:#f8efea; color:#75443e; }
-        .vl-small { color:#849087; font-size:.7rem; }
+        .vl-small { color:#5f6d64; font-size:.7rem; }
         .stButton > button, .stLinkButton > a { border-radius:8px; font-weight:700; min-height:2.55rem; }
         .stButton > button[kind="primary"] { background:var(--vl-green); border-color:var(--vl-green); }
         .stButton > button[kind="primary"]:hover { background:var(--vl-green2); border-color:var(--vl-green2); }
@@ -137,8 +137,8 @@ def voice_companion_html(meds: list[dict], appointments: list[dict], language: s
     greeting = json_for_script("Hi Asha, welcome back.")
     return """
     <div id="voicePanel" style="font-family:Arial,sans-serif;background:#f8f8f1;border:1px solid #e3e5d9;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;color:#30473b">
-      <div style="min-width:0"><div style="font-size:12px;font-weight:700">VayoLoop voice companion</div><div id="voiceStatus" style="font-size:11px;color:#718078;margin-top:3px">Welcome and scheduled reminders can be spoken when audio is enabled.</div></div>
-      <button id="voiceEnable" style="flex:none;border:0;border-radius:7px;background:#245b49;color:white;padding:9px 12px;font-weight:700;font-size:11px">Enable voice alerts</button>
+      <div style="min-width:0"><div style="font-size:12px;font-weight:700">VayoLoop voice companion</div><div id="voiceStatus" role="status" aria-live="polite" style="font-size:11px;color:#5f6d64;margin-top:3px">Welcome and scheduled reminders can be spoken when audio is enabled.</div></div>
+      <button id="voiceEnable" type="button" aria-label="Enable scheduled voice reminders" style="flex:none;border:0;border-radius:7px;background:#245b49;color:white;padding:9px 12px;font-weight:700;font-size:11px">Enable voice alerts</button>
     </div>
     <script>
     (function(){

@@ -72,3 +72,29 @@ assert.match(app, /not a real medication alert/i, 'Spoken content must identify 
 assert.match(html, /role="dialog"/, 'The guided tour must use dialog semantics');
 
 console.log('VayoLoop demo, voice companion, interaction and safety smoke checks passed.');
+
+
+function relativeLuminance(hex) {
+  const value = hex.replace('#', '');
+  const channels = [0, 2, 4].map((offset) => parseInt(value.slice(offset, offset + 2), 16) / 255);
+  const linear = channels.map((channel) => (
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  ));
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+function contrastRatio(foreground, background) {
+  const values = [relativeLuminance(foreground), relativeLuminance(background)].sort((a, b) => b - a);
+  return (values[0] + 0.05) / (values[1] + 0.05);
+}
+assert.match(html, /--muted:#5f6d64/, 'Static preview body copy must use the accessible muted token');
+assert.match(html, /--amber:#79531e/, 'Static preview warning text must use the accessible amber token');
+assert.match(html, /color:#65756b/, 'Static preview placeholders must remain legible');
+assert.match(app, /--vl-muted:#5f6d64/, 'Streamlit copy must use the accessible muted token');
+assert.match(app, /\\[data-testid="stMetricLabel"\\] \\{ color:#5f6d64;/, 'Streamlit metric labels must use accessible contrast');
+assert.match(app, /\\.vl-small \\{ color:#5f6d64;/, 'Streamlit small text must use accessible contrast');
+assert.ok(contrastRatio('#5f6d64', '#fffefa') >= 4.5, 'Muted text on white cards must meet WCAG AA normal-text contrast');
+assert.ok(contrastRatio('#5f6d64', '#f5f2e9') >= 4.5, 'Muted text on paper background must meet WCAG AA normal-text contrast');
+assert.ok(contrastRatio('#65756b', '#fbfcfb') >= 4.5, 'Input placeholders must meet WCAG AA normal-text contrast');
+assert.ok(contrastRatio('#79531e', '#f8f0df') >= 4.5, 'Warning labels must meet WCAG AA normal-text contrast');
+assert.match(app, /id="voiceStatus" role="status" aria-live="polite"/, 'Voice status updates must be announced to assistive technology');
+
