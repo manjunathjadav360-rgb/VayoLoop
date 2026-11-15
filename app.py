@@ -14,6 +14,7 @@ import streamlit.components.v1 as components
 
 from vayoloop_core import (
     INDIA_TZ,
+    analyse_health_trends,
     acknowledge_emergency_contact,
     close_emergency_event,
     create_emergency_event,
@@ -728,16 +729,87 @@ elif section == "Health journal":
                     use_container_width=True,
                 )
         with st.container(border=True):
-            st.markdown("**Personal trend snapshots**")
-            metrics = sorted(set(x["metric"] for x in workspace["health"]))
-            for metric in metrics:
-                readings = sorted([x for x in workspace["health"] if x["metric"] == metric], key=lambda x: x["observed_at"])
-                if len(readings) >= 2:
-                    previous, latest = readings[-2], readings[-1]
-                    delta = float(latest["value"]) - float(previous["value"])
-                    st.metric(metric, f"{latest['value']} {latest['unit']}", f"{delta:+g} {latest['unit']} vs prior entry", delta_color="off")
-                elif readings:
-                    st.write(f"{metric}: one entry — more observations are needed to show a trend.")
+            st.markdown("**Health trend analysis**")
+            trend_summaries = analyse_health_trends(workspace["health"], now=india_now())
+            if not trend_summaries:
+                st.info("Add valid, dated numeric observations to build a trend.")
+            else:
+                labels = [
+                    f"{item['metric']} · {item['unit'] or 'unit not set'}"
+                    for item in trend_summaries
+                ]
+                selected_label = st.selectbox(
+                    "Choose an observation to analyse",
+                    labels,
+                    key="health_trend_metric",
+                )
+                selected_trend = trend_summaries[labels.index(selected_label)]
+                latest_col, change_col, window_col = st.columns(3)
+                latest_col.metric(
+                    "Latest recorded value",
+                    f"{selected_trend['latest_value']:g} {selected_trend['unit']}".strip(),
+                )
+                if selected_trend["change_vs_previous"] is not None:
+                    change_col.metric(
+                        "Change vs previous",
+                        f"{selected_trend['change_vs_previous']:+g} {selected_trend['unit']}".strip(),
+                        delta_color="off",
+                    )
+                else:
+                    change_col.metric("Change vs previous", "Need 2 records")
+                if selected_trend["window_change"] is not None:
+                    window_col.metric(
+                        f"Average change · {selected_trend['window_size']} vs prior {selected_trend['window_size']}",
+                        f"{selected_trend['window_change']:+.2f} {selected_trend['unit']}".strip(),
+                        delta_color="off",
+                    )
+                else:
+                    window_col.metric(
+                        "Rolling comparison",
+                        f"Need {selected_trend['window_size'] * 2} records",
+                    )
+
+                chart_points = [
+                    {
+                        "Recorded at": datetime.fromisoformat(item["observed_at"]),
+                        "Value": item["value"],
+                    }
+                    for item in selected_trend["readings"]
+                ]
+                st.line_chart(
+                    chart_points,
+                    x="Recorded at",
+                    y="Value",
+                    height=230,
+                    use_container_width=True,
+                )
+                st.caption(
+                    f"{selected_trend['count']} records · {selected_trend['freshness']} · "
+                    f"latest-vs-previous direction: {selected_trend['direction_vs_previous']}. "
+                    "Direction describes the numbers only; it is not a medical assessment."
+                )
+
+                st.markdown("**Recorded trend summary**")
+                summary_rows = []
+                for item in trend_summaries:
+                    latest_text = f"{item['latest_value']:g} {item['unit']}".strip()
+                    if item["change_vs_previous"] is None:
+                        change_text = "Need more records"
+                    else:
+                        change_text = f"{item['change_vs_previous']:+g} {item['unit']}".strip()
+                    summary_rows.append({
+                        "Observation": item["metric"],
+                        "Latest": latest_text,
+                        "Change vs previous": change_text,
+                        "Records": item["count"],
+                        "Data freshness": item["freshness"],
+                    })
+                st.dataframe(summary_rows, hide_index=True, use_container_width=True)
+                st.caption(
+                    "Rolling averages compare the latest 3 entries with the preceding 3 entries "
+                    "for the same observation and unit. More history improves context; no universal "
+                    "normal range or diagnosis is inferred."
+                )
     with right:
         with st.container(border=True):
             st.markdown("**Add an observation**")
