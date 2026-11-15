@@ -1,0 +1,704 @@
+from __future__ import annotations
+
+import html
+import json
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
+import streamlit as st
+import streamlit.components.v1 as components
+
+from vayoloop_core import (
+    INDIA_TZ,
+    acknowledge_emergency_contact,
+    close_emergency_event,
+    create_emergency_event,
+    escalate_emergency,
+    india_now,
+    medication_state,
+    record_dose,
+    seed_demo_state,
+)
+
+st.set_page_config(
+    page_title="VayoLoop — Care beyond reminders",
+    page_icon="🌿",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+VOICE_LANGUAGES = {
+    "English (India)": "en-IN",
+    "हिन्दी": "hi-IN",
+    "ಕನ್ನಡ": "kn-IN",
+    "ગુજરાતી": "gu-IN",
+    "मराठी": "mr-IN",
+    "தமிழ்": "ta-IN",
+    "తెలుగు": "te-IN",
+    "বাংলা": "bn-IN",
+}
+
+VOICE_COPY = {
+    "en-IN": {"due": "It is time for your scheduled medicine reminder. Please check your care plan.", "follow": "Your scheduled medicine reminder is still awaiting a report. Please check your care plan.", "appointment": "You have an appointment coming up in about one hour. Please check the appointment details."},
+    "hi-IN": {"due": "आपकी दवा की तय याद दिलाने का समय है। कृपया अपनी देखभाल योजना देखें।", "follow": "दवा की याद अभी रिपोर्ट नहीं हुई है। कृपया अपनी देखभाल योजना देखें।", "appointment": "लगभग एक घंटे में आपकी अपॉइंटमेंट है। कृपया जानकारी देखें।"},
+    "kn-IN": {"due": "ನಿಮ್ಮ ಔಷಧಿ ನೆನಪಿಸುವ ಸಮಯವಾಗಿದೆ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಆರೈಕೆ ಯೋಜನೆಯನ್ನು ಪರಿಶೀಲಿಸಿ.", "follow": "ಔಷಧಿ ವರದಿ ಇನ್ನೂ ದಾಖಲಾಗಿಲ್ಲ. ದಯವಿಟ್ಟು ಆರೈಕೆ ಯೋಜನೆಯನ್ನು ಪರಿಶೀಲಿಸಿ.", "appointment": "ಸುಮಾರು ಒಂದು ಗಂಟೆಯಲ್ಲಿ ನಿಮ್ಮ ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ಇದೆ. ವಿವರಗಳನ್ನು ಪರಿಶೀಲಿಸಿ."},
+    "gu-IN": {"due": "તમારી દવાની યાદ અપાવવાનો સમય થયો છે. કૃપા કરીને તમારી સંભાળ યોજના તપાસો.", "follow": "દવાની નોંધ હજી કરવામાં આવી નથી. કૃપા કરીને તમારી સંભાળ યોજના તપાસો.", "appointment": "લગભગ એક કલાકમાં તમારી મુલાકાત છે. કૃપા કરીને વિગતો તપાસો."},
+    "mr-IN": {"due": "तुमच्या औषधाची आठवण करून देण्याची वेळ झाली आहे. कृपया तुमची काळजी योजना तपासा.", "follow": "औषधाची नोंद अजून झालेली नाही. कृपया काळजी योजना तपासा.", "appointment": "सुमारे एका तासात तुमची भेट आहे. कृपया तपशील तपासा."},
+    "ta-IN": {"due": "உங்கள் மருந்து நினைவூட்டும் நேரம் வந்துவிட்டது. உங்கள் பராமரிப்பு திட்டத்தைப் பார்க்கவும்.", "follow": "மருந்து பதிவு இன்னும் செய்யப்படவில்லை. உங்கள் பராமரிப்பு திட்டத்தைப் பார்க்கவும்.", "appointment": "சுமார் ஒரு மணி நேரத்தில் உங்களுக்கு சந்திப்பு உள்ளது. விவரங்களைப் பார்க்கவும்."},
+    "te-IN": {"due": "మీ మందుల రిమైండర్ సమయం వచ్చింది. దయచేసి మీ సంరక్షణ ప్రణాళికను చూడండి.", "follow": "మందుల నమోదు ఇంకా చేయలేదు. దయచేసి మీ సంరక్షణ ప్రణాళికను చూడండి.", "appointment": "సుమారు గంటలో మీ అపాయింట్‌మెంట్ ఉంది. వివరాలు చూడండి."},
+    "bn-IN": {"due": "আপনার ওষুধের নির্ধারিত সময় হয়েছে। অনুগ্রহ করে আপনার যত্নের পরিকল্পনা দেখুন।", "follow": "ওষুধের রিপোর্ট এখনও করা হয়নি। অনুগ্রহ করে আপনার যত্নের পরিকল্পনা দেখুন।", "appointment": "প্রায় এক ঘণ্টার মধ্যে আপনার অ্যাপয়েন্টমেন্ট আছে। অনুগ্রহ করে বিস্তারিত দেখুন।"},
+}
+
+
+def inject_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+        :root { --vl-ink:#20352e; --vl-muted:#718078; --vl-paper:#f5f2e9; --vl-green:#245b49; --vl-green2:#326e58; --vl-line:#e7e4da; --vl-card:#fffefa; --vl-soft:#eaf0e8; --vl-amber:#f7efdf; --vl-red:#f7e9e5; }
+        html, body, [class*="css"] { font-family:'DM Sans',sans-serif; }
+        .stApp { background:var(--vl-paper); color:var(--vl-ink); }
+        [data-testid="stHeader"] { background:rgba(245,242,233,.88); }
+        [data-testid="stSidebar"] { background:#eeeae0; border-right:1px solid #dfded3; }
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { color:#52645a; }
+        [data-testid="stSidebar"] .stRadio label { font-weight:600; padding:3px 0; }
+        h1,h2,h3 { font-family:'Manrope',sans-serif; color:var(--vl-ink); letter-spacing:-.035em; }
+        h1 { font-weight:800; }
+        h2 { font-size:1.28rem; font-weight:750; }
+        h3 { font-size:1.02rem; font-weight:750; }
+        p, label, .stCaption { color:#64736a; }
+        [data-testid="stMetric"] { background:var(--vl-card); border:1px solid var(--vl-line); border-radius:12px; padding:14px 16px; box-shadow:0 4px 16px rgba(35,53,44,.035); }
+        [data-testid="stMetricLabel"] { color:#77847b; font-size:.76rem; font-weight:700; }
+        [data-testid="stMetricValue"] { color:var(--vl-green); font-family:'Manrope',sans-serif; font-weight:800; }
+        [data-testid="stMetricDelta"] { font-size:.72rem; }
+        [data-testid="stVerticalBlockBorderWrapper"] > div { border-color:var(--vl-line)!important; border-radius:13px!important; background:var(--vl-card); }
+        .vl-hero { background:#244d3f; color:#fff; border-radius:15px; padding:25px 28px; margin:4px 0 18px; display:flex; justify-content:space-between; gap:18px; align-items:center; }
+        .vl-hero .kicker { color:#c9d9cb; letter-spacing:.16em; font-size:.67rem; font-weight:800; text-transform:uppercase; }
+        .vl-hero h1 { color:#fff; margin:7px 0 5px; font-size:clamp(1.8rem,3.5vw,2.5rem); }
+        .vl-hero p { color:#d9e3da; margin:0; font-size:.91rem; }
+        .vl-hero .hero-mark { font:800 3.1rem 'Manrope'; color:#d9e5d8; opacity:.95; border:1px solid rgba(255,255,255,.22); border-radius:50%; width:76px; height:76px; display:grid; place-items:center; flex:none; }
+        .vl-demo { display:flex; gap:8px; align-items:center; background:#f2ecdc; color:#76613d; border:1px solid #e6ddc9; padding:8px 12px; border-radius:8px; font-size:.75rem; margin:0 0 14px; }
+        .vl-dot { width:7px; height:7px; background:#ba8b3c; border-radius:50%; display:inline-block; flex:none; }
+        .vl-section-label { text-transform:uppercase; letter-spacing:.13em; color:var(--vl-green); font-weight:800; font-size:.67rem; margin:8px 0 7px; }
+        .vl-card-title { font:750 1rem 'Manrope'; color:var(--vl-ink); margin-bottom:4px; }
+        .vl-muted { color:var(--vl-muted); font-size:.82rem; line-height:1.55; }
+        .vl-pill { display:inline-block; border-radius:20px; padding:4px 9px; background:var(--vl-soft); color:var(--vl-green); font-size:.68rem; font-weight:800; }
+        .vl-pill.warn { background:var(--vl-amber); color:#89662e; }
+        .vl-pill.red { background:var(--vl-red); color:#954a40; }
+        .vl-note { border-left:3px solid #73977d; background:#f0f3eb; padding:10px 12px; border-radius:0 8px 8px 0; color:#506458; font-size:.78rem; line-height:1.55; }
+        .vl-danger { border-left-color:#ad5548; background:#f8efea; color:#75443e; }
+        .vl-small { color:#849087; font-size:.7rem; }
+        .stButton > button, .stLinkButton > a { border-radius:8px; font-weight:700; min-height:2.55rem; }
+        .stButton > button[kind="primary"] { background:var(--vl-green); border-color:var(--vl-green); }
+        .stButton > button[kind="primary"]:hover { background:var(--vl-green2); border-color:var(--vl-green2); }
+        .stTextInput input, .stNumberInput input, .stDateInput input, .stTimeInput input, .stSelectbox div[data-baseweb="select"] { border-radius:8px; }
+        div[data-testid="stExpander"] { border-color:var(--vl-line); border-radius:10px; background:var(--vl-card); }
+        hr { border-color:var(--vl-line); }
+        [data-testid="stDataFrame"] { border:1px solid var(--vl-line); border-radius:9px; }
+        footer { visibility:hidden; }
+        @media(max-width:720px){ .vl-hero{padding:20px;}.vl-hero .hero-mark{width:54px;height:54px;font-size:2.2rem;} }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def voice_companion_html(meds: list[dict], appointments: list[dict], language: str) -> str:
+    lang_copy = VOICE_COPY.get(language, VOICE_COPY["en-IN"])
+    active_meds = []
+    today = india_now().date().isoformat()
+    reports = st.session_state.workspace["dose_reports"]
+    for med in meds:
+        reported = any(r["medication_id"] == med["id"] and r["reported_at"][:10] == today for r in reports)
+        if med.get("active", True):
+            active_meds.append({"id": med["id"], "name": med["name"], "time": med["time"], "reported": reported})
+    upcoming = [
+        {"id": appt["id"], "title": appt["title"], "when": appt["when"]}
+        for appt in appointments if appt["status"] == "Scheduled"
+    ]
+    data = json.dumps({"meds": active_meds, "appointments": upcoming, "copy": lang_copy, "language": language}, ensure_ascii=False)
+    greeting = json.dumps("Hi Asha, welcome back.")
+    return """
+    <div id="voicePanel" style="font-family:Arial,sans-serif;background:#f8f8f1;border:1px solid #e3e5d9;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;color:#30473b">
+      <div style="min-width:0"><div style="font-size:12px;font-weight:700">VayoLoop voice companion</div><div id="voiceStatus" style="font-size:11px;color:#718078;margin-top:3px">Welcome and scheduled reminders can be spoken when audio is enabled.</div></div>
+      <button id="voiceEnable" style="flex:none;border:0;border-radius:7px;background:#245b49;color:white;padding:9px 12px;font-weight:700;font-size:11px">Enable voice alerts</button>
+    </div>
+    <script>
+    (function(){
+      const config = """ + data + """;
+      const greeting = """ + greeting + """;
+      const enable = document.getElementById('voiceEnable');
+      const status = document.getElementById('voiceStatus');
+      let timer = null;
+      let audioContext = null;
+      function setStatus(message){ status.textContent = message; }
+      function speak(message){
+        if(!('speechSynthesis' in window)) { setStatus('Speech is not supported in this browser.'); return; }
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(message);
+        const voices = window.speechSynthesis.getVoices();
+        const preferred = voices.find(v => v.lang.toLowerCase() === config.language.toLowerCase()) || voices.find(v => v.lang.toLowerCase().startsWith(config.language.slice(0,2).toLowerCase())) || voices.find(v => v.lang.toLowerCase().startsWith('en'));
+        if(preferred) utterance.voice = preferred;
+        utterance.lang = preferred ? preferred.lang : config.language;
+        utterance.rate = 0.88; utterance.pitch = 1; utterance.volume = 1;
+        utterance.onstart = () => setStatus('Speaking. Scheduled reminders are checked while this page stays open.');
+        utterance.onend = () => setStatus('Voice alerts enabled · reminders are checked while this page stays open.');
+        utterance.onerror = () => setStatus('Browser audio was blocked or unavailable. Tap Enable voice alerts again.');
+        window.speechSynthesis.speak(utterance);
+      }
+      function ring(){
+        try{
+          const AudioClass = window.AudioContext || window.webkitAudioContext;
+          if(!AudioClass) return;
+          if(!audioContext) audioContext = new AudioClass();
+          if(audioContext.state === 'suspended') audioContext.resume();
+          [0,0.24].forEach(offset=>{
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            const start = audioContext.currentTime + offset;
+            osc.type='sine'; osc.frequency.setValueAtTime(720,start);
+            gain.gain.setValueAtTime(0.0001,start);
+            gain.gain.exponentialRampToValueAtTime(0.12,start+0.03);
+            gain.gain.exponentialRampToValueAtTime(0.0001,start+0.19);
+            osc.connect(gain); gain.connect(audioContext.destination);
+            osc.start(start); osc.stop(start+0.2);
+          });
+        }catch(e){ setStatus('The browser could not play the alert tone.'); }
+      }
+      function announce(key, text){
+        try{
+          if(localStorage.getItem(key)) return;
+          localStorage.setItem(key,'1');
+        }catch(e){}
+        ring(); speak(text);
+      }
+      function check(){
+        const now = new Date();
+        const dayKey = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+        const minuteNow = now.getHours()*60+now.getMinutes();
+        config.meds.forEach(med=>{
+          if(med.reported) return;
+          const parts = med.time.split(':').map(Number);
+          const dueMinute = parts[0]*60+parts[1];
+          const diff = minuteNow-dueMinute;
+          if(diff >= 0 && diff <= 29) announce('vayoloop_dose_'+med.id+'_'+dayKey, config.copy.due);
+          if(diff >= 30 && diff <= 90) announce('vayoloop_follow_'+med.id+'_'+dayKey, config.copy.follow);
+        });
+        config.appointments.forEach(appt=>{
+          const when = new Date(appt.when);
+          const minutes = (when.getTime()-now.getTime())/60000;
+          if(minutes > 0 && minutes <= 60) announce('vayoloop_appt_'+appt.id, config.copy.appointment);
+        });
+      }
+      function start(){
+        if(timer) clearInterval(timer);
+        check();
+        timer = setInterval(check,15000);
+        enable.textContent='Voice alerts enabled';
+        setStatus('Voice alerts enabled · reminders are checked every 15 seconds while this page stays open.');
+      }
+      enable.addEventListener('click',function(){
+        try{ localStorage.setItem('vayoloop_voice_enabled','1'); }catch(e){}
+        try{
+          const AudioClass = window.AudioContext || window.webkitAudioContext;
+          if(AudioClass){ if(!audioContext) audioContext=new AudioClass(); if(audioContext.state==='suspended') audioContext.resume(); }
+        }catch(e){}
+        speak(greeting);
+        start();
+      });
+      try{
+        if(localStorage.getItem('vayoloop_voice_enabled')==='1'){
+          enable.textContent='Voice alerts active';
+          setTimeout(function(){ speak(greeting); start(); },250);
+        }
+      }catch(e){}
+    })();
+    </script>
+    """
+
+
+def fmt_datetime(value: str) -> str:
+    try:
+        return datetime.fromisoformat(value).astimezone(INDIA_TZ).strftime("%a, %d %b · %I:%M %p")
+    except (ValueError, TypeError):
+        return "Time not set"
+
+
+def add_event(title: str, detail: str) -> None:
+    st.session_state.workspace["events"].insert(
+        0, {"id": f"evt-{datetime.now().timestamp()}", "title": title, "detail": detail, "at": india_now().isoformat()}
+    )
+
+
+def active_emergency_events() -> list[dict]:
+    closed = {"Closed · person confirmed okay", "Closed · demo resolved"}
+    return [event for event in st.session_state.workspace["emergency_events"] if event["status"] not in closed]
+
+
+def status_badge(status: str) -> str:
+    if "Overdue" in status or "Urgent" in status or "Awaiting" in status:
+        return "🔸"
+    if "Reported" in status or "acknowledged" in status.lower() or "Closed" in status:
+        return "✓"
+    return "•"
+
+
+if "workspace" not in st.session_state:
+    st.session_state.workspace = seed_demo_state()
+if "role" not in st.session_state:
+    st.session_state.role = "Elder"
+if "voice_language" not in st.session_state:
+    st.session_state.voice_language = "English (India)"
+if "large_text" not in st.session_state:
+    st.session_state.large_text = False
+
+inject_styles()
+
+with st.sidebar:
+    st.markdown(
+        "<div style='display:flex;align-items:center;gap:10px;margin:6px 0 20px'><div style='background:#245b49;color:white;border-radius:11px;width:40px;height:40px;display:grid;place-items:center;font:800 20px Manrope'>V</div><div><div style='font:800 19px Manrope;color:#20352e;letter-spacing:-.05em'>VayoLoop</div><div style='font-size:9px;letter-spacing:.16em;color:#78847a;font-weight:800'>CARE BEYOND REMINDERS</div></div></div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown("**DEMO WORKSPACE**")
+    st.selectbox("Preview perspective", ["Elder", "Family", "Caregiver", "Viewer"], key="role")
+    language_label = st.selectbox("Voice reminder language", list(VOICE_LANGUAGES), key="voice_language")
+    st.toggle("Larger text", key="large_text")
+    st.markdown("---")
+    section = st.radio(
+        "Workspace",
+        ["Home", "Medicines", "Health journal", "Appointments", "Family circle", "Emergency centre", "Connected living", "Local support"],
+        label_visibility="collapsed",
+    )
+    st.markdown("---")
+    st.caption("Synthetic profile · Asha Rao")
+    if st.button("Reset demo workspace", use_container_width=True):
+        st.session_state.workspace = seed_demo_state()
+        st.session_state.pop("current_emergency_id", None)
+        st.rerun()
+    st.caption("This prototype stores demo changes in this browser session only.")
+
+if st.session_state.large_text:
+    st.markdown("<style>html{font-size:115%}p,label,button{font-size:1.03rem!important}</style>", unsafe_allow_html=True)
+
+st.markdown(
+    """
+    <div class="vl-demo"><span class="vl-dot"></span><strong>DEMO MODE</strong><span>All people, readings and events are fictional. No real alerts, calls or device connections are made.</span></div>
+    <div class="vl-hero">
+      <div><div class="kicker">INDIA-FIRST · ELDER-LED CARE</div><h1>Hi Asha, welcome back.</h1><p>Your day, your routines and your people — in one calm place.</p></div>
+      <div class="hero-mark">V</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+workspace = st.session_state.workspace
+today = india_now().date()
+today_reports = [r for r in workspace["dose_reports"] if r["reported_at"][:10] == today.isoformat()]
+upcoming_appointments = [a for a in workspace["appointments"] if a["status"] == "Scheduled"]
+upcoming_appointments.sort(key=lambda a: a["when"])
+unresolved = active_emergency_events()
+due_count = sum(1 for med in workspace["meds"] if med.get("active", True) and medication_state(med, workspace["dose_reports"]) in {"Due · awaiting report", "Overdue · unconfirmed"})
+
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("Medicine reports today", f"{len(today_reports)} / {sum(1 for x in workspace['meds'] if x.get('active', True))}", help="Self-reported only; not proof of ingestion.")
+m2.metric("Medicine reminders needing review", due_count)
+m3.metric("Next appointment", fmt_datetime(upcoming_appointments[0]["when"]).split("·")[-1].strip() if upcoming_appointments else "None scheduled")
+m4.metric("Open safety events", len(unresolved))
+
+if section == "Home":
+    st.subheader("Your care, at a glance")
+    components.html(voice_companion_html(workspace["meds"], workspace["appointments"], VOICE_LANGUAGES[language_label]), height=75, scrolling=False)
+    left, right = st.columns([1.25, 0.75], gap="large")
+    with left:
+        with st.container(border=True):
+            st.markdown("**Today's medication routine**")
+            for med in workspace["meds"]:
+                if not med.get("active", True):
+                    continue
+                med_status = medication_state(med, workspace["dose_reports"])
+                c1, c2, c3 = st.columns([2.2, 1, 1.2])
+                c1.markdown(f"**{html.escape(med['name'])}**  \n<span class='vl-small'>{html.escape(med['strength'])} · {html.escape(med['time'])}</span>", unsafe_allow_html=True)
+                c2.markdown(f"{status_badge(med_status)} {med_status}")
+                if med_status != "Reported today":
+                    if c3.button("Report dose", key=f"home_report_{med['id']}"):
+                        workspace["dose_reports"].append(record_dose(med["id"]))
+                        add_event("Dose self-reported", f"{med['name']} · report entered by demo user")
+                        st.rerun()
+                else:
+                    c3.caption("Recorded")
+                st.divider()
+            st.caption("A report records what the person says happened. It does not verify ingestion or change a prescription.")
+        with st.container(border=True):
+            st.markdown("**Family care plan · today**")
+            todays_tasks = [task for task in workspace["tasks"] if datetime.fromisoformat(task["due"]).date() == today and task["status"] != "Completed"]
+            if not todays_tasks:
+                st.info("No family tasks are scheduled for today.")
+            for task in todays_tasks:
+                st.markdown(f"**{task['title']}** · {task['assignee']}  \n<span class='vl-small'>{fmt_datetime(task['due'])}</span>", unsafe_allow_html=True)
+    with right:
+        with st.container(border=True):
+            st.markdown("**Daily wellbeing check-in**")
+            st.caption("A simple routine check — not a clinical assessment.")
+            with st.form("daily_checkin"):
+                meals = st.selectbox("Meals", ["Not asked yet", "Had meals", "Needs help with meals"])
+                hydration = st.selectbox("Water check-in", ["Not asked yet", "Had water", "Would like a reminder"])
+                mood = st.selectbox("How are you feeling?", ["Not answered", "Doing okay", "Would like a family call", "Would like support"])
+                note = st.text_input("Optional note")
+                submitted = st.form_submit_button("Save check-in", type="primary", use_container_width=True)
+            if submitted:
+                workspace["checkins"].insert(0, {"at": india_now().isoformat(), "meals": meals, "hydration": hydration, "mood": mood, "note": note})
+                add_event("Daily check-in completed", "A wellbeing check-in was recorded in the demo.")
+                st.success("Check-in saved in this demo session.")
+        with st.container(border=True):
+            st.markdown("**Safety network**")
+            st.markdown(f"<div class='vl-pill'>{len(workspace['contacts'])} trusted contacts in sample network</div>", unsafe_allow_html=True)
+            st.write("Primary contact:", workspace["contacts"][0]["name"] if workspace["contacts"] else "Not configured")
+            st.write("National emergency number in India: **112**")
+            st.link_button("Open emergency centre", "https://112.gov.in/", use_container_width=True)
+    with st.container(border=True):
+        st.markdown("**Recent care activity**")
+        for event in workspace["events"][:5]:
+            st.markdown(f"**{event['title']}**  \n<span class='vl-small'>{event['detail']} · {fmt_datetime(event['at'])}</span>", unsafe_allow_html=True)
+
+elif section == "Medicines":
+    st.subheader("Medication journey")
+    st.markdown("<div class='vl-muted'>Prescription record → daily routine → self-report → refill planning → professional review.</div>", unsafe_allow_html=True)
+    left, right = st.columns([1.25, 0.75], gap="large")
+    with left:
+        for med in workspace["meds"]:
+            with st.container(border=True):
+                a, b = st.columns([2, 1])
+                with a:
+                    st.markdown(f"**{html.escape(med['name'])}** · {html.escape(med['strength'])}")
+                    st.caption(f"Scheduled {med['time']} · {med['instructions']}")
+                    state = medication_state(med, workspace["dose_reports"])
+                    st.markdown(f"{status_badge(state)} **{state}**")
+                    if med["remaining_units"] <= 5:
+                        st.warning(f"Refill planning: approximately {med['remaining_units']} sample units recorded. Confirm actual supply before arranging a refill.")
+                    else:
+                        st.caption(f"Sample supply record: {med['remaining_units']} units · update manually.")
+                with b:
+                    if st.button("Report as taken", key=f"report_{med['id']}", disabled=state == "Reported today", use_container_width=True):
+                        workspace["dose_reports"].append(record_dose(med["id"]))
+                        add_event("Dose self-reported", f"{med['name']} · entered by demo user")
+                        st.rerun()
+                    if st.button("Mark inactive", key=f"inactive_{med['id']}", use_container_width=True, disabled=not med.get("active", True)):
+                        med["active"] = False
+                        add_event("Medicine record set inactive", f"{med['name']} · demo record only")
+                        st.rerun()
+        with st.container(border=True):
+            st.markdown("**Dose report history**")
+            if workspace["dose_reports"]:
+                for report in sorted(workspace["dose_reports"], key=lambda x: x["reported_at"], reverse=True)[:10]:
+                    med_name = next((x["name"] for x in workspace["meds"] if x["id"] == report["medication_id"]), "Medicine record")
+                    st.write(f"✓ {med_name} · {fmt_datetime(report['reported_at'])} · Self-reported")
+            else:
+                st.caption("No sample dose reports yet.")
+    with right:
+        with st.container(border=True):
+            st.markdown("**Add a sample medicine record**")
+            with st.form("add_medicine"):
+                name = st.text_input("Medicine label", placeholder="Medicine D")
+                strength = st.text_input("Strength / label", placeholder="As written on the prescription")
+                med_time = st.time_input("Reminder time", value=time(9, 0), step=300)
+                instructions = st.text_input("Routine note", placeholder="Example: after breakfast")
+                stock = st.number_input("Approximate supply units", min_value=0, max_value=365, value=14)
+                if st.form_submit_button("Add medicine record", type="primary", use_container_width=True):
+                    if not name.strip():
+                        st.error("Enter a medicine label.")
+                    else:
+                        workspace["meds"].append({"id": f"med-{len(workspace['meds'])+1}-{int(datetime.now().timestamp())}", "name": name.strip(), "strength": strength.strip() or "Not entered", "time": med_time.strftime("%H:%M"), "instructions": instructions.strip() or "No extra note", "remaining_units": int(stock), "active": True})
+                        add_event("Medicine record added", f"{name.strip()} · sample record")
+                        st.success("Sample record added.")
+                        st.rerun()
+        st.markdown("<div class='vl-note'>VayoLoop must never suggest a dose, change a prescription, or tell someone to stop a medicine. The product records the clinician-provided plan and flags possible conflicts for a qualified professional.</div>", unsafe_allow_html=True)
+
+elif section == "Health journal":
+    st.subheader("Health progress journal")
+    st.caption("Changes are compared with this profile's previous recorded values. Trends are not diagnoses, risk scores or treatment advice.")
+    left, right = st.columns([1.2, 0.8], gap="large")
+    with left:
+        with st.container(border=True):
+            st.markdown("**Recorded observations**")
+            if not workspace["health"]:
+                st.info("No readings have been recorded.")
+            else:
+                for reading in sorted(workspace["health"], key=lambda x: x["observed_at"], reverse=True)[:16]:
+                    st.markdown(f"**{reading['metric']} · {reading['value']} {reading['unit']}**  \n<span class='vl-small'>{fmt_datetime(reading['observed_at'])} · Source: {reading['source']}</span>", unsafe_allow_html=True)
+                    st.divider()
+        with st.container(border=True):
+            st.markdown("**Personal trend snapshots**")
+            metrics = sorted(set(x["metric"] for x in workspace["health"]))
+            for metric in metrics:
+                readings = sorted([x for x in workspace["health"] if x["metric"] == metric], key=lambda x: x["observed_at"])
+                if len(readings) >= 2:
+                    previous, latest = readings[-2], readings[-1]
+                    delta = float(latest["value"]) - float(previous["value"])
+                    st.metric(metric, f"{latest['value']} {latest['unit']}", f"{delta:+g} {latest['unit']} vs prior entry", delta_color="off")
+                elif readings:
+                    st.write(f"{metric}: one entry — more observations are needed to show a trend.")
+    with right:
+        with st.container(border=True):
+            st.markdown("**Add an observation**")
+            with st.form("health_observation"):
+                metric = st.selectbox("Observation", ["Daily steps", "Sleep duration", "Resting heart rate", "Blood pressure — systolic", "Blood pressure — diastolic", "Blood glucose", "Weight", "Other"])
+                value = st.number_input("Recorded value", value=0.0, step=0.1, format="%.2f")
+                unit_default = {"Daily steps":"steps","Sleep duration":"hours","Resting heart rate":"bpm","Blood pressure — systolic":"mmHg","Blood pressure — diastolic":"mmHg","Blood glucose":"mg/dL","Weight":"kg"}.get(metric, "")
+                unit = st.text_input("Unit", value=unit_default)
+                source = st.selectbox("Source", ["Entered by family", "Entered by elder", "Compatible device (demo)", "Clinic report (demo)"])
+                if st.form_submit_button("Save observation", type="primary", use_container_width=True):
+                    workspace["health"].append({"id": f"health-{int(datetime.now().timestamp())}", "metric": metric, "value": value, "unit": unit, "observed_at": india_now().isoformat(), "source": source})
+                    add_event("Health observation added", f"{metric} · user-entered demo observation")
+                    st.success("Observation saved.")
+                    st.rerun()
+        st.markdown("<div class='vl-note'>A change in a number is not automatically good or bad. VayoLoop shows the recorded values and encourages the family to discuss concerns with a qualified clinician.</div>", unsafe_allow_html=True)
+
+elif section == "Appointments":
+    st.subheader("Appointments and care visits")
+    left, right = st.columns([1.2, 0.8], gap="large")
+    with left:
+        with st.container(border=True):
+            st.markdown("**Upcoming and previous appointments**")
+            rows = sorted(workspace["appointments"], key=lambda x: x["when"])
+            for appt in rows:
+                with st.container(border=True):
+                    c1, c2 = st.columns([2, 1])
+                    c1.markdown(f"**{appt['title']}**")
+                    c1.caption(f"{appt['provider']} · {fmt_datetime(appt['when'])}")
+                    c2.markdown(f"<span class='vl-pill'>{appt['status']}</span>", unsafe_allow_html=True)
+                    if appt["status"] == "Scheduled" and c2.button("Mark visited", key=f"visited_{appt['id']}"):
+                        appt["status"] = "Completed"
+                        add_event("Appointment marked completed", appt["title"])
+                        st.rerun()
+    with right:
+        with st.container(border=True):
+            st.markdown("**Plan a visit**")
+            with st.form("new_appointment"):
+                title = st.text_input("Visit / appointment", placeholder="Follow-up visit")
+                provider = st.text_input("Doctor / clinic", placeholder="Clinic name")
+                visit_date = st.date_input("Date", value=today + timedelta(days=2), min_value=today)
+                visit_time = st.time_input("Time", value=time(10, 0), step=300)
+                note = st.text_input("Bring / remember", placeholder="Reports, prescription, questions")
+                if st.form_submit_button("Add appointment", type="primary", use_container_width=True):
+                    if not title.strip():
+                        st.error("Enter an appointment name.")
+                    else:
+                        visit_at = datetime.combine(visit_date, visit_time, tzinfo=INDIA_TZ)
+                        workspace["appointments"].append({"id": f"apt-{int(datetime.now().timestamp())}", "title": title.strip(), "provider": provider.strip() or "Not specified", "when": visit_at.isoformat(), "status": "Scheduled", "note": note.strip()})
+                        add_event("Appointment added", title.strip())
+                        st.success("Appointment added.")
+                        st.rerun()
+        st.markdown("<div class='vl-note'>Reminder alerts in this prototype work only while the app page remains open and browser audio is enabled. They are not a substitute for a confirmed appointment notification service.</div>", unsafe_allow_html=True)
+
+elif section == "Family circle":
+    st.subheader("Family circle and shared responsibilities")
+    st.caption("The elder stays at the centre. Demo roles illustrate access scopes; they are not production security controls.")
+    left, right = st.columns([1.1, 0.9], gap="large")
+    with left:
+        with st.container(border=True):
+            st.markdown("**People in the care circle**")
+            for member in workspace["members"]:
+                c1, c2 = st.columns([2, 1])
+                c1.markdown(f"**{member['name']}** · {member['relationship']}")
+                c1.caption(f"Role: {member['role']} · {member['permission']}")
+                c2.markdown(f"<span class='vl-pill'>{member['role']}</span>", unsafe_allow_html=True)
+                st.divider()
+        with st.container(border=True):
+            st.markdown("**Family task calendar**")
+            for task in sorted(workspace["tasks"], key=lambda x: x["due"]):
+                c1, c2, c3 = st.columns([2, 1.3, 0.8])
+                c1.write(task["title"])
+                c2.caption(f"{task['assignee']} · {fmt_datetime(task['due'])}")
+                if task["status"] != "Completed" and c3.button("Done", key=f"task_done_{task['id']}"):
+                    task["status"] = "Completed"
+                    add_event("Family care task completed", task["title"])
+                    st.rerun()
+                elif task["status"] == "Completed":
+                    c3.caption("✓ Done")
+    with right:
+        with st.container(border=True):
+            st.markdown("**Add a trusted contact**")
+            with st.form("add_contact"):
+                contact_name = st.text_input("Name")
+                relationship = st.text_input("Relationship", placeholder="Daughter, son, neighbour...")
+                priority = st.selectbox("Escalation order", ["Primary contact", "Backup contact", "Nearby helper"])
+                if st.form_submit_button("Add to demo network", type="primary", use_container_width=True):
+                    if not contact_name.strip():
+                        st.error("Enter a name.")
+                    else:
+                        workspace["contacts"].append({"id": f"contact-{int(datetime.now().timestamp())}", "name": contact_name.strip(), "relationship": relationship.strip() or priority, "priority": {"Primary contact":1, "Backup contact":2, "Nearby helper":3}[priority]})
+                        workspace["contacts"].sort(key=lambda x: x["priority"])
+                        st.success("Contact added to the demo network.")
+                        st.rerun()
+        with st.container(border=True):
+            st.markdown("**Plan a family task**")
+            with st.form("family_task"):
+                task_title = st.text_input("Task", placeholder="Call after dinner")
+                assignee = st.selectbox("Assigned to", [c["name"] for c in workspace["contacts"]] or ["Unassigned"])
+                task_date = st.date_input("Date", value=today)
+                task_time = st.time_input("Time", value=time(19, 0), key="task_time")
+                if st.form_submit_button("Add care task", use_container_width=True):
+                    if task_title.strip():
+                        when = datetime.combine(task_date, task_time, tzinfo=INDIA_TZ)
+                        workspace["tasks"].append({"id": f"task-{int(datetime.now().timestamp())}", "title": task_title.strip(), "assignee": assignee, "due": when.isoformat(), "status": "Planned"})
+                        add_event("Family task planned", task_title.strip())
+                        st.success("Task added.")
+                        st.rerun()
+        st.markdown("<div class='vl-note'>An invitation or role preview in this demo does not grant real account access. Production sharing needs verified identity, elder consent, server-enforced permissions and revocation.</div>", unsafe_allow_html=True)
+
+elif section == "Emergency centre":
+    st.subheader("Emergency and family escalation centre")
+    st.markdown("<div class='vl-note vl-danger'><strong>Demo safety notice:</strong> the buttons below simulate events and do not notify contacts, call 112, detect falls or dispatch help. For a real emergency in India, call <strong>112</strong> directly.</div>", unsafe_allow_html=True)
+    a, b = st.columns([1, 1], gap="large")
+    with a:
+        with st.container(border=True):
+            st.markdown("**Test the response workflow**")
+            st.caption("Use these controls to demonstrate the product logic with fictional people.")
+            if st.button("Simulate possible fall signal", use_container_width=True):
+                event = create_emergency_event("Possible fall signal", workspace["contacts"])
+                workspace["emergency_events"].insert(0, event)
+                st.session_state.current_emergency_id = event["id"]
+                add_event("Possible fall signal · demo", "A simulated event is waiting for confirmation.")
+                st.rerun()
+            if st.button("Manual SOS · simulate immediate family alert", type="primary", use_container_width=True):
+                event = create_emergency_event("Manual SOS", workspace["contacts"])
+                workspace["emergency_events"].insert(0, event)
+                st.session_state.current_emergency_id = event["id"]
+                add_event("Manual SOS · demo", "Immediate family escalation simulated; no messages were sent.")
+                st.rerun()
+            st.markdown("---")
+            st.markdown("**India emergency access**")
+            st.markdown("For a real emergency, use the national emergency number **112**. VayoLoop's demo cannot place calls or dispatch responders.")
+            st.link_button("Open 112 emergency portal", "https://112.gov.in/", use_container_width=True)
+            st.markdown("[Call 112 from a phone](tel:112)")
+    with b:
+        with st.container(border=True):
+            st.markdown("**Configured escalation order**")
+            for contact in sorted(workspace["contacts"], key=lambda x: x["priority"]):
+                st.markdown(f"**{contact['priority']}. {contact['name']}**  \n<span class='vl-small'>{contact['relationship']}</span>", unsafe_allow_html=True)
+            st.caption("Real alert delivery needs verified contact channels, consent, network checks and delivery receipts.")
+    active = active_emergency_events()
+    if active:
+        st.markdown("### Active test event")
+        event = active[0]
+        with st.container(border=True):
+            st.markdown(f"**{event['event_type']}** · {fmt_datetime(event['created_at'])}")
+            st.markdown(f"<span class='vl-pill warn'>{event['status']}</span> <span class='vl-pill'>DEMO ONLY · NOT SENT</span>", unsafe_allow_html=True)
+            if event["status"] == "Awaiting person confirmation":
+                st.warning("A possible event needs a response. In a real deployment, the device signal alone must not be treated as a confirmed fall.")
+                c1, c2 = st.columns(2)
+                if c1.button("Person responds: I'm okay", type="primary", use_container_width=True):
+                    updated = close_emergency_event(event, safe=True)
+                    workspace["emergency_events"][0] = updated
+                    add_event("Safety check closed", "Person confirmed okay in the demo flow.")
+                    st.rerun()
+                if c2.button("No response · simulate escalation", use_container_width=True):
+                    workspace["emergency_events"][0] = escalate_emergency(event)
+                    add_event("Emergency escalation simulated", "Family contact alerts queued in demo only.")
+                    st.rerun()
+            else:
+                if event.get("acknowledged_by"):
+                    st.success(f"{event['acknowledged_by']} acknowledged this demo alert.")
+                for contact_update in event["contact_updates"]:
+                    c1, c2 = st.columns([2, 1])
+                    c1.write(f"**{contact_update['name']}** · {contact_update['relationship']}")
+                    c1.caption(contact_update["status"])
+                    if contact_update["status"] != "Acknowledged in demo" and event["status"] != "Closed · demo resolved":
+                        if c2.button("Acknowledge", key=f"ack_{event['id']}_{contact_update['contact_id']}"):
+                            updated = acknowledge_emergency_contact(event, contact_update["contact_id"])
+                            workspace["emergency_events"][0] = updated
+                            add_event("Family alert acknowledged · demo", f"{contact_update['name']} acknowledged.")
+                            st.rerun()
+                if st.button("Close emergency test", use_container_width=True):
+                    workspace["emergency_events"][0] = close_emergency_event(event)
+                    st.success("Demo event closed.")
+                    st.rerun()
+    else:
+        st.info("No active emergency test event. Start a simulation above to walk through the response.")
+    with st.expander("Emergency history"):
+        if workspace["emergency_events"]:
+            for event in workspace["emergency_events"]:
+                st.write(f"{event['event_type']} · {event['status']} · {fmt_datetime(event['created_at'])}")
+        else:
+            st.caption("No emergency events recorded in this demo session.")
+    st.markdown("<div class='vl-small'>Production requirements: consented watch/home integrations, reliable server-side monitoring, event verification, delivery acknowledgements, backup contact escalation, location permissions, abuse prevention, audit logs and independent emergency-service integration validation.</div>", unsafe_allow_html=True)
+
+elif section == "Connected living":
+    st.subheader("Connected living")
+    st.caption("Designed for compatible wearables, phone health platforms and supported home sensors. Not every brand or appliance exposes an integration.")
+    left, right = st.columns([1.2, 0.8], gap="large")
+    with left:
+        with st.container(border=True):
+            st.markdown("**Connected device register**")
+            for device in workspace["devices"]:
+                c1, c2 = st.columns([2, 1])
+                c1.markdown(f"**{device['name']}** · {device['kind']}")
+                c1.caption(f"{device['provider']} · Last sync: {fmt_datetime(device['last_sync'])}")
+                c2.markdown("<span class='vl-pill'>SIMULATED</span>", unsafe_allow_html=True)
+                st.divider()
+            if st.button("Simulate device sync", type="primary", use_container_width=True):
+                stamp = india_now().isoformat()
+                for device in workspace["devices"]:
+                    device["last_sync"] = stamp
+                    device["status"] = "Simulated"
+                add_event("Device sync simulated", "Connected device sample timestamps updated.")
+                st.success("Sample sync recorded. No physical device was contacted.")
+                st.rerun()
+            if st.button("Simulate home safety sensor event", use_container_width=True):
+                event = create_emergency_event("Home sensor activity · simulated", workspace["contacts"])
+                workspace["emergency_events"].insert(0, event)
+                st.session_state.current_emergency_id = event["id"]
+                add_event("Home sensor event · demo", "Sample event created for emergency workflow.")
+                st.rerun()
+    with right:
+        with st.container(border=True):
+            st.markdown("**Register a compatible device (demo)**")
+            with st.form("register_device"):
+                device_name = st.text_input("Device name")
+                kind = st.selectbox("Device type", ["Smartwatch", "Phone health platform", "Motion sensor", "Door sensor", "Smoke detector", "Gas detector", "Smart speaker", "Other"])
+                provider = st.text_input("Brand / platform")
+                consent = st.checkbox("I have permission to include this device in the sample profile.")
+                if st.form_submit_button("Add device record", type="primary", use_container_width=True):
+                    if not device_name.strip() or not consent:
+                        st.error("Enter a device name and confirm permission.")
+                    else:
+                        workspace["devices"].append({"id": f"dev-{int(datetime.now().timestamp())}", "name": device_name.strip(), "kind": kind, "provider": provider.strip() or "Not entered", "status": "Simulated", "last_sync": None})
+                        add_event("Device record added", f"{device_name.strip()} · demo registry")
+                        st.success("Device record added.")
+                        st.rerun()
+    st.markdown("<div class='vl-note'>Device readings must show their source, timestamp and freshness. A disconnected or stale device must never be presented as live. Physical monitoring and smart-home control require provider-specific APIs, permissions and fail-safe testing.</div>", unsafe_allow_html=True)
+
+elif section == "Local support":
+    st.subheader("Local care directory")
+    st.caption("A family-maintained directory for the elder's actual local support network. The sample directory starts empty so we don't invent nearby clinics or contact details.")
+    with st.container(border=True):
+        st.markdown("**Add a trusted local resource**")
+        with st.form("add_resource"):
+            resource_type = st.selectbox("Resource type", ["Hospital", "Clinic", "Doctor", "Pharmacy", "Ambulance provider", "Home-care service", "Physiotherapist", "Other"])
+            resource_name = st.text_input("Name")
+            area = st.text_input("Area / address label")
+            resource_phone = st.text_input("Phone (optional)")
+            details = st.text_input("Useful details", placeholder="Opening hours, appointment note, access information")
+            if st.form_submit_button("Save local resource", type="primary"):
+                if not resource_name.strip():
+                    st.error("Enter a resource name.")
+                else:
+                    workspace["resources"].append({"type": resource_type, "name": resource_name.strip(), "area": area.strip(), "phone": resource_phone.strip(), "details": details.strip()})
+                    add_event("Local support resource added", resource_name.strip())
+                    st.success("Resource saved in this demo session.")
+                    st.rerun()
+    if workspace["resources"]:
+        for resource in workspace["resources"]:
+            with st.container(border=True):
+                st.markdown(f"**{resource['name']}** · {resource['type']}")
+                st.caption(" · ".join(x for x in [resource["area"], resource["phone"], resource["details"]] if x))
+    st.markdown("---")
+    st.markdown("**Health information sharing, later**")
+    st.markdown("<div class='vl-note'>VayoLoop can be designed for optional ABDM / ABHA compatibility. This demo does not connect to ABDM, request an ABHA number or exchange medical records. Any future record exchange must use the official consent process.</div>", unsafe_allow_html=True)
+    st.markdown("For urgent help in India, call **112**. [Official emergency response portal](https://112.gov.in/).")
+
+st.markdown("---")
+st.markdown(
+    "<div style='text-align:center;color:#859087;font-size:11px;line-height:1.6'>VayoLoop · Care beyond reminders · Elder-led, consent-first care<br>Fictional sample data · Not a medical device or emergency service · No live integrations are connected</div>",
+    unsafe_allow_html=True,
+)
