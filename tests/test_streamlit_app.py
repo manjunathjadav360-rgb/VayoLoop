@@ -14,6 +14,7 @@ SECTIONS = [
     "Emergency centre",
     "Connected living",
     "Local support",
+    "Care Passport",
 ]
 
 
