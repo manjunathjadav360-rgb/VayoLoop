@@ -121,6 +121,11 @@ async function refresh() {
 }
 
 function render() {
+  const canManageCare = ['owner','elder','caregiver'].includes(myRole);
+  show('medForm', canManageCare);
+  show('healthForm', canManageCare);
+  show('apptForm', canManageCare);
+  show('deviceForm', canManageCare);
   const activeMeds = meds.filter(item => item.status === 'active');
   const upcoming = appointments.filter(item =>
     item.status === 'scheduled' && new Date(item.scheduled_at) >= new Date()
@@ -132,7 +137,7 @@ function render() {
   $('todayMeds').innerHTML = activeMeds.map(item => `
     <div class="item">
       <div><strong>${esc(item.name)}</strong><small>${esc(item.strength || '')} · ${esc(item.instructions || 'No instructions added')}</small></div>
-      <button class="btn light" data-taken="${esc(item.id)}">Log taken</button>
+      ${canManageCare ? `<button class="btn light" data-taken="${esc(item.id)}">Log taken</button>` : ''}
     </div>`).join('') || empty('No active medication records yet.');
 
   $('medList').innerHTML = meds.map(item => `
