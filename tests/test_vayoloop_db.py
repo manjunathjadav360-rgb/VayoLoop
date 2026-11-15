@@ -100,6 +100,7 @@ class VayoLoopDatabaseMappingTests(unittest.TestCase):
             ("x" * 121, 12, "steps", valid_time, "Entered by family"),
             ("Daily steps", -1, "steps", valid_time, "Entered by family"),
             ("Daily steps", float("nan"), "steps", valid_time, "Entered by family"),
+            ("Daily steps", True, "steps", valid_time, "Entered by family"),
             ("Daily steps", 12, "u" * 33, valid_time, "Entered by family"),
             ("Daily steps", 12, "steps", "not-a-date", "Entered by family"),
             ("Daily steps", 12, "steps", "2026-11-15T10:00:00", "Entered by family"),
@@ -302,10 +303,25 @@ class VayoLoopDatabaseMappingTests(unittest.TestCase):
                 b"metric,value,unit,observed_at\nDaily steps,4100,steps,2026-11-15T08:00:00\n"
             )
 
+    def test_wearable_csv_import_rejects_duplicate_headers_and_extra_row_values(self):
+        duplicate_headers = (
+            b"metric,value,unit,observed_at,Metric\\n"
+            b"Daily steps,4100,steps,2026-11-15T08:00:00+05:30,Other\\n"
+        )
+        extra_value = (
+            b"metric,value,unit,observed_at\\n"
+            b"Daily steps,4100,steps,2026-11-15T08:00:00+05:30,unexpected\\n"
+        )
+        with self.assertRaisesRegex(ValueError, "duplicate column"):
+            parse_health_observations_csv(duplicate_headers)
+        with self.assertRaisesRegex(ValueError, "more values than the header"):
+            parse_health_observations_csv(extra_value)
+
     def test_wearable_csv_import_rejects_bad_values_and_oversized_payload(self):
         bad_rows = [
             b"Daily steps,-1,steps,2026-11-15T08:00:00+05:30",
             b"Daily steps,NaN,steps,2026-11-15T08:00:00+05:30",
+            b"Daily steps,True,steps,2026-11-15T08:00:00+05:30",
             b"Daily steps,not-a-number,steps,2026-11-15T08:00:00+05:30",
         ]
         for row in bad_rows:
