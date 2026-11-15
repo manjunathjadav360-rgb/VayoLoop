@@ -38,6 +38,10 @@ assert.ok(app.includes('30*60*1000'), 'Missed-dose alarm should use a defined gr
 assert.ok(app.includes('reportDose'), 'Medication reporting must be interactive');
 assert.ok(app.includes('renderTrends'), 'Health progress trends must be rendered');
 assert.ok(app.includes('localStorage.setItem(\'vayoloop_voice_enabled\''), 'Voice preference should persist between visits');
+assert.ok(app.includes("$('greeting').textContent='Hi Asha, welcome back.'"), 'Greeting must stay short and private');
+assert.ok(app.includes("speak('Hi Asha, welcome back.')"), 'Welcome should be spoken automatically');
+assert.ok(app.includes("window.addEventListener('pointerdown'"), 'First normal interaction should unlock browser audio');
+assert.ok(html.includes('VayoLoop visual refresh'), 'The visual refresh should be present');
 
 for (const id of ['simulateAlert','simulateSync']) assert.ok(ids.includes(id), 'Missing connected living demo control: ' + id);
 assert.match(html, /not a medical device or emergency service/i, 'Medical and emergency limitations must remain visible');
