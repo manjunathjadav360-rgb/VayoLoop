@@ -23,6 +23,18 @@
 .trend{display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center;padding:10px 0;border-top:1px solid #edf1ed}.trend:first-child{border-top:0}.trend strong{font:750 16px Manrope}.trend small{display:block;color:var(--muted);font-size:9px;margin-top:3px}.trend-tag{font-size:9px;font-weight:800;padding:5px 8px;border-radius:18px;background:var(--mint);color:var(--green)}.trend-tag.review{background:var(--amber-bg);color:var(--amber)}.barrows{display:grid;gap:8px}.barrow{display:grid;grid-template-columns:57px 1fr 34px;gap:8px;align-items:center;font-size:9px;color:var(--muted)}.bartrack{height:7px;background:#edf2ee;border-radius:8px;overflow:hidden}.barfill{height:100%;border-radius:8px;background:var(--green2)}
 .timeline{display:grid;gap:0}.timeline-item{display:grid;grid-template-columns:12px 1fr;gap:9px;padding-bottom:12px}.timeline-dot{width:7px;height:7px;border-radius:50%;background:#78a891;margin-top:4px;box-shadow:0 0 0 4px var(--mint)}.timeline-item strong{font-size:10px}.timeline-item small{display:block;color:var(--muted);font-size:9px;margin-top:3px}.member{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid #edf1ed}.member:first-child{border-top:0}.member-avatar{width:30px;height:30px;border-radius:10px;background:var(--mint);color:var(--green);font:800 10px Manrope;display:grid;place-items:center;flex:none}.member-info{min-width:0;flex:1}.member-info strong{font-size:10px}.member-info small{display:block;color:var(--muted);font-size:9px;margin-top:2px}.codebox{font:700 11px ui-monospace,monospace;letter-spacing:.06em;word-break:break-all;background:#f5f8f5;border:1px solid var(--line);padding:10px;border-radius:8px;color:var(--green)}
 body.large-text{font-size:17px}body.large-text .item strong,body.large-text .card h2{font-size:16px}body.large-text .item small,body.large-text .muted{font-size:11px}.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:white;padding:10px 14px;border-radius:10px;z-index:9;max-width:90%;font-size:11px;box-shadow:0 10px 24px #10231b22}.foot{color:var(--muted);font-size:9px;text-align:center;margin:20px 0 3px;line-height:1.5}
+.tour-overlay{position:fixed;inset:0;z-index:20;background:rgba(18,39,32,.48);display:grid;place-items:center;padding:16px;backdrop-filter:blur(5px)}
+.tour-card{width:min(520px,100%);background:#fff;border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 24px 80px rgba(9,31,22,.24)}
+.tour-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}
+.tour-progress{display:flex;gap:5px;flex:1}.tour-progress span{height:4px;border-radius:5px;background:#e9eee9;flex:1}.tour-progress span.active{background:var(--green)}
+.tour-count{font-size:10px;font-weight:800;color:var(--muted);white-space:nowrap}
+.tour-symbol{width:52px;height:52px;border-radius:17px;background:var(--mint);display:grid;place-items:center;font-size:24px;margin-bottom:16px}
+.tour-card h2{font:800 22px Manrope;letter-spacing:-.035em;margin:7px 0 10px}
+.tour-body{font-size:12px;color:var(--muted);line-height:1.7;margin:0 0 18px}
+.tour-callout{background:#f5f8f5;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:11px;line-height:1.55;color:#4d675b;margin-bottom:18px}
+.tour-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.tour-nav{display:flex;gap:7px}
+@media(max-width:500px){.tour-card{padding:19px}.tour-card h2{font-size:19px}}
 @media(max-width:820px){.statgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.wide,.side,.half,.third{grid-column:span 12}.hero{align-items:start;flex-direction:column}.hero-right{align-items:start}.top{align-items:flex-start}.shell{padding:14px 12px 23px}}
 @media(max-width:440px){.stat{font-size:21px}.card{padding:14px}.top{flex-direction:column}.top-actions{width:100%;justify-content:space-between}.tabs{gap:5px}.tabs button{padding:8px 9px}.fieldrow{grid-template-columns:1fr}}
 </style>
@@ -40,7 +52,7 @@ body.large-text{font-size:17px}body.large-text .item strong,body.large-text .car
   </header>
   <section class="hero">
     <div><div class="eyebrow">Your care space</div><h1 id="greeting">Good morning, Asha</h1><p class="hero-copy">A calmer picture of everyday care, shared with the people who matter.</p></div>
-    <div class="hero-right"><span class="pill">Elder-led care circle</span><span class="muted" style="font-size:9px" id="todayLabel"></span></div>
+    <div class="hero-right"><span class="pill">Elder-led care circle</span><span class="muted" style="font-size:9px" id="todayLabel"></span><button id="startTour" class="btn" type="button">Explore the 60-second demo <span aria-hidden="true">↗</span></button></div>
   </section>
 
   <section class="statgrid" aria-label="Demo overview">
@@ -150,7 +162,18 @@ body.large-text{font-size:17px}body.large-text .item strong,body.large-text .car
     </div>
   </section>
 
-  <footer class="foot">VayoLoop · Elder-led, consent-first care · Fictional demo data · Not a medical device or emergency service</footer>
+  <div id="tourDialog" class="tour-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourBody" tabindex="-1">
+  <div class="tour-card">
+    <div class="tour-top"><div id="tourProgress" class="tour-progress" aria-label="Tour progress"></div><span id="tourCount" class="tour-count">1 / 5</span><button id="closeTour" class="btn ghost small" type="button" aria-label="Close guided tour">✕</button></div>
+    <div id="tourSymbol" class="tour-symbol" aria-hidden="true">◷</div>
+    <div id="tourKicker" class="eyebrow">THE VAYOLOOP DIFFERENCE</div>
+    <h2 id="tourTitle">Care starts with the person.</h2>
+    <p id="tourBody" class="tour-body">A guided introduction to the connected care experience.</p>
+    <div id="tourCallout" class="tour-callout">Fictional sample data. No real medical or device connection.</div>
+    <div class="tour-actions"><button id="tourExplore" class="btn light" type="button">Explore this area</button><div class="tour-nav"><button id="tourPrev" class="btn ghost" type="button">Back</button><button id="tourNext" class="btn" type="button">Next</button></div></div>
+  </div>
+</div>
+<footer class="foot">VayoLoop · Elder-led, consent-first care · Fictional demo data · Not a medical device or emergency service</footer>
 </main>
 <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 <script src="./app.js" defer></script>
