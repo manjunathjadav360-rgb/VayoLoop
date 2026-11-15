@@ -9,11 +9,21 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import date, datetime
+from math import isfinite
 from typing import Any
 
 DEMO_WORKSPACE_ID = "00000000-0000-4000-8000-000000000001"
 BUCKET_NAME = "vayoloop-prescriptions"
 MAX_PRESCRIPTION_BYTES = 10 * 1024 * 1024
+_DEMO_STORAGE_PATH_RE = re.compile(
+    rf"^{re.escape(DEMO_WORKSPACE_ID)}/[0-9a-f]{{32}}_[A-Za-z0-9._-]{{1,120}}$"
+)
+
+
+def is_valid_demo_storage_path(path: str) -> bool:
+    """Accept only object keys created for this fixed demo workspace."""
+    return isinstance(path, str) and bool(_DEMO_STORAGE_PATH_RE.fullmatch(path))
 
 # A Supabase publishable key is intended for public clients. RLS policies limit
 # this app to a single fictional demo workspace. A secret/service-role key is
@@ -92,13 +102,43 @@ def save_health_observation(
     observed_at: str,
     source: str,
 ) -> None:
+    """Validate and save a non-negative, timestamped demo observation.
+
+    This checks data integrity only; it deliberately does not apply clinical
+    reference ranges or interpret whether a measurement is medically healthy.
+    """
+    metric_value = str(metric or "").strip()
+    unit_value = str(unit or "").strip()
+    source_value = str(source or "Entered by user").strip() or "Entered by user"
+
+    if not metric_value or len(metric_value) > 120:
+        raise ValueError("Observation name must contain 1 to 120 characters.")
+    if len(unit_value) > 32:
+        raise ValueError("Unit must be 32 characters or fewer.")
+    if len(source_value) > 100:
+        raise ValueError("Source must be 100 characters or fewer.")
+
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Observation value must be numeric.") from exc
+    if not isfinite(numeric_value) or numeric_value < 0:
+        raise ValueError("Observation value must be a finite, non-negative number.")
+
+    try:
+        timestamp = datetime.fromisoformat(str(observed_at).replace("Z", "+00:00"))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Observation time must be a valid ISO timestamp.") from exc
+    if timestamp.tzinfo is None:
+        raise ValueError("Observation time must include a timezone.")
+
     client.table("vayoloop_demo_health_observations").insert({
         "workspace_id": DEMO_WORKSPACE_ID,
-        "metric": metric,
-        "value": value,
-        "unit": unit,
-        "observed_at": observed_at,
-        "source": source,
+        "metric": metric_value,
+        "value": numeric_value,
+        "unit": unit_value,
+        "observed_at": timestamp.isoformat(timespec="seconds"),
+        "source": source_value,
         "context": {},
     }).execute()
 
@@ -178,13 +218,13 @@ def save_prescription_record(
         response = client.table("vayoloop_demo_prescriptions").insert({
             "workspace_id": DEMO_WORKSPACE_ID,
             "title": (title or safe_name).strip()[:180],
-            "clinician_name": clinician_name.strip() or None,
-            "prescribed_on": prescribed_on,
+            "clinician_name": str(clinician_name or "").strip()[:120] or None,
+            "prescribed_on": date.fromisoformat(prescribed_on).isoformat() if prescribed_on else None,
             "document_path": path,
             "review_status": "pending_review",
-            "clinic_name": clinic_name.strip() or None,
-            "condition_as_written": condition_as_written.strip() or None,
-            "notes": notes.strip() or None,
+            "clinic_name": str(clinic_name or "").strip()[:160] or None,
+            "condition_as_written": str(condition_as_written or "").strip()[:240] or None,
+            "notes": str(notes or "").strip()[:2000] or None,
             "original_file_name": safe_name,
             "file_content_type": mime_type,
             "file_size_bytes": len(payload),
@@ -205,8 +245,8 @@ def save_prescription_record(
 
 
 def download_prescription_file(client: Any, path: str) -> bytes:
-    if not path.startswith(f"{DEMO_WORKSPACE_ID}/"):
-        raise ValueError("The requested file is outside the VayoLoop demo workspace.")
+    if not is_valid_demo_storage_path(path):
+        raise ValueError("The requested file path is not a valid VayoLoop demo object.")
     result = client.storage.from_(BUCKET_NAME).download(path)
     if isinstance(result, bytes):
         return result
@@ -216,10 +256,13 @@ def download_prescription_file(client: Any, path: str) -> bytes:
 
 
 def delete_prescription_record(client: Any, record_id: str, path: str) -> None:
+    # Validate every destructive target before issuing either delete operation.
+    if not record_id:
+        raise ValueError("A prescription record ID is required.")
+    if not is_valid_demo_storage_path(path):
+        raise ValueError("The requested file path is not a valid VayoLoop demo object.")
+
     client.table("vayoloop_demo_prescriptions").delete().eq(
         "id", record_id
     ).eq("workspace_id", DEMO_WORKSPACE_ID).execute()
-    if path:
-        if not path.startswith(f"{DEMO_WORKSPACE_ID}/"):
-            raise ValueError("The requested file is outside the VayoLoop demo workspace.")
-        client.storage.from_(BUCKET_NAME).remove([path])
+    client.storage.from_(BUCKET_NAME).remove([path])

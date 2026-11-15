@@ -64,12 +64,12 @@ Only health observations and prescription records currently persist. Medicines, 
 
 This is a **synthetic-data hackathon prototype**, not a medical device, care provider or emergency service.
 
-- Supabase email/password authentication is available after Streamlit secrets are configured. Only health observations and prescription records are persistently stored; live family messaging, SMS, WhatsApp and push notifications are not connected. All judging/test entries must be fictional.
+- The current public Streamlit demo has no sign-in or sign-up interface. It uses a Supabase publishable key with row-level security scoped to one fixed shared demo workspace. Only health observations and prescription records are persistently stored; live family messaging, SMS, WhatsApp and push notifications are not connected. All judging/test entries must be fictional.
 - Family/contact alerts, falls, home-sensor events and device syncs are simulations. The UI labels them as simulated; no person is actually notified.
 - A possible fall requires verification. A manual SOS follows the immediate *simulated* family-alert path. The app does not automatically call 112 or dispatch responders.
 - Browser speech and reminder tones depend on device/browser support, audio permission and the page staying open. They are not reliable background or life-safety alerts when the browser is closed or the phone is asleep.
 - Voice phrases depend on speech voices installed on the device; language coverage varies.
-- Streamlit session state remains temporary for medicines, appointments, family tasks, connected devices, wellbeing check-ins and emergency simulations. Supabase uses authentication, row-level security and a private prescription bucket for the two persistent record types, but this hackathon prototype is not a production clinical-record service.
+- Streamlit session state remains temporary for medicines, appointments, family tasks, connected devices, wellbeing check-ins and emergency simulations. The public demo tables and private Storage bucket have row-level security policies scoped to the fixed demo workspace, but those records are visible to anonymous demo visitors and are not private user records. This hackathon prototype is not a production clinical-record service.
 - Care Passport downloads are generated from the current demo session only; they are not saved to a server or sent to a clinician or family member. The export should only be shared with the elder's permission.
 - Health observations and prescription records persist in one shared public demo workspace. Anyone using the app may view or change them. Medicines and other care workflows remain session-only. Never upload real patient records to this public hackathon prototype.
 - A dose report is self-reported and is not proof of ingestion. The app never changes a prescription, recommends a dose or decides treatment.

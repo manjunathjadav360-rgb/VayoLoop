@@ -123,5 +123,38 @@ class VayoLoopCoreTests(unittest.TestCase):
         self.assertEqual(report["medication_id"], "m1")
 
 
+
+    def test_medication_due_grace_period_boundary(self):
+        med = {"id": "m1", "time": "08:00"}
+        at_boundary = datetime(2026, 11, 15, 8, 30, tzinfo=INDIA_TZ)
+        after_boundary = datetime(2026, 11, 15, 8, 30, 1, tzinfo=INDIA_TZ)
+        self.assertEqual(medication_state(med, [], at_boundary), "Due · awaiting report")
+        self.assertEqual(medication_state(med, [], after_boundary), "Overdue · unconfirmed")
+
+    def test_previous_day_dose_report_does_not_mark_today_reported(self):
+        now = datetime(2026, 11, 15, 9, 0, tzinfo=INDIA_TZ)
+        med = {"id": "m1", "time": "08:00"}
+        yesterday = {"medication_id": "m1", "reported_at": "2026-11-14T08:00:00+05:30"}
+        other_medicine = {"medication_id": "m2", "reported_at": now.isoformat()}
+        self.assertEqual(
+            medication_state(med, [yesterday, other_medicine], now),
+            "Overdue · unconfirmed",
+        )
+
+    def test_health_trend_rejects_zero_or_negative_window_size(self):
+        for window_size in (0, -1):
+            with self.subTest(window_size=window_size):
+                with self.assertRaises(ValueError):
+                    analyse_health_trends([], window_size=window_size)
+
+    def test_health_trend_marks_future_timestamp(self):
+        now = datetime(2026, 11, 15, 10, 0, tzinfo=INDIA_TZ)
+        future = (now + timedelta(hours=2)).isoformat()
+        result = analyse_health_trends(
+            [{"metric": "Sleep", "unit": "hours", "value": 7, "observed_at": future}],
+            now=now,
+        )
+        self.assertEqual(result[0]["freshness"], "Future-dated")
+
 if __name__ == "__main__":
     unittest.main()

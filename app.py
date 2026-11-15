@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import csv
-import html
 import io
 import json
 import os
@@ -37,6 +36,7 @@ from vayoloop_db import (
     save_prescription_record,
 )
 from care_passport import build_care_passport, render_care_passport_html
+from vayoloop_security import html_text, json_for_script
 
 st.set_page_config(
     page_title="VayoLoop — Care beyond reminders",
@@ -129,13 +129,13 @@ def voice_companion_html(meds: list[dict], appointments: list[dict], language: s
     for med in meds:
         reported = any(r["medication_id"] == med["id"] and r["reported_at"][:10] == today for r in reports)
         if med.get("active", True):
-            active_meds.append({"id": med["id"], "name": med["name"], "time": med["time"], "reported": reported})
+            active_meds.append({"id": med["id"], "time": med["time"], "reported": reported})
     upcoming = [
-        {"id": appt["id"], "title": appt["title"], "when": appt["when"]}
+        {"id": appt["id"], "when": appt["when"]}
         for appt in appointments if appt["status"] == "Scheduled"
     ]
-    data = json.dumps({"meds": active_meds, "appointments": upcoming, "copy": lang_copy, "language": language}, ensure_ascii=False)
-    greeting = json.dumps("Hi Asha, welcome back.")
+    data = json_for_script({"meds": active_meds, "appointments": upcoming, "copy": lang_copy, "language": language})
+    greeting = json_for_script("Hi Asha, welcome back.")
     return """
     <div id="voicePanel" style="font-family:Arial,sans-serif;background:#f8f8f1;border:1px solid #e3e5d9;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;color:#30473b">
       <div style="min-width:0"><div style="font-size:12px;font-weight:700">VayoLoop voice companion</div><div id="voiceStatus" style="font-size:11px;color:#718078;margin-top:3px">Welcome and scheduled reminders can be spoken when audio is enabled.</div></div>
@@ -355,7 +355,7 @@ with st.sidebar:
     section = st.radio(
         "Workspace",
         ["Home", "Medicines", "Prescription library", "Health journal", "Appointments", "Family circle", "Emergency centre", "Connected living", "Local support", "Care Passport"],
-        label_visibility="collapsed",
+        label_visibility="visible",
         key="workspace_section",
     )
     st.markdown("---")
@@ -391,7 +391,7 @@ if cloud_active:
 else:
     notice = cloud_error or "Database connection is unavailable."
     st.markdown(
-        f"<div class='vl-demo'><span class='vl-dot'></span><strong>DEMO MODE</strong><span>Health and prescription data may not persist right now. {html.escape(notice[:150])}</span></div>",
+        f"<div class='vl-demo'><span class='vl-dot'></span><strong>DEMO MODE</strong><span>Health and prescription data may not persist right now. {html_text(notice[:150])}</span></div>",
         unsafe_allow_html=True,
     )
 
@@ -399,7 +399,7 @@ hero_greeting = "Hi Asha, welcome back."
 st.markdown(
     f"""
     <div class="vl-hero">
-      <div><div class="kicker">INDIA-FIRST · ELDER-LED CARE</div><h1>{html.escape(hero_greeting)}</h1><p>Your day, your routines and your people — in one calm place.</p></div>
+      <div><div class="kicker">INDIA-FIRST · ELDER-LED CARE</div><h1>{html_text(hero_greeting)}</h1><p>Your day, your routines and your people — in one calm place.</p></div>
       <div class="hero-mark">V</div>
     </div>
     """,
@@ -440,7 +440,7 @@ if section == "Home":
                     continue
                 med_status = medication_state(med, workspace["dose_reports"])
                 c1, c2, c3 = st.columns([2.2, 1, 1.2])
-                c1.markdown(f"**{html.escape(med['name'])}**  \n<span class='vl-small'>{html.escape(med['strength'])} · {html.escape(med['time'])}</span>", unsafe_allow_html=True)
+                c1.markdown(f"**{html_text(med['name'])}**  \n<span class='vl-small'>{html_text(med['strength'])} · {html_text(med['time'])}</span>", unsafe_allow_html=True)
                 c2.markdown(f"{status_badge(med_status)} {med_status}")
                 if med_status != "Reported today":
                     if c3.button("Report dose", key=f"home_report_{med['id']}"):
@@ -457,7 +457,7 @@ if section == "Home":
             if not todays_tasks:
                 st.info("No family tasks are scheduled for today.")
             for task in todays_tasks:
-                st.markdown(f"**{task['title']}** · {task['assignee']}  \n<span class='vl-small'>{fmt_datetime(task['due'])}</span>", unsafe_allow_html=True)
+                st.markdown(f"**{html_text(task['title'])}** · {html_text(task['assignee'])}  \n<span class='vl-small'>{fmt_datetime(task['due'])}</span>", unsafe_allow_html=True)
     with right:
         with st.container(border=True):
             st.markdown("**Daily wellbeing check-in**")
@@ -481,7 +481,7 @@ if section == "Home":
     with st.container(border=True):
         st.markdown("**Recent care activity**")
         for event in workspace["events"][:5]:
-            st.markdown(f"**{event['title']}**  \n<span class='vl-small'>{event['detail']} · {fmt_datetime(event['at'])}</span>", unsafe_allow_html=True)
+            st.markdown(f"**{html_text(event['title'])}**  \n<span class='vl-small'>{html_text(event['detail'])} · {fmt_datetime(event['at'])}</span>", unsafe_allow_html=True)
 
 elif section == "Medicines":
     st.subheader("Medication journey")
@@ -492,7 +492,7 @@ elif section == "Medicines":
             with st.container(border=True):
                 a, b = st.columns([2, 1])
                 with a:
-                    st.markdown(f"**{html.escape(med['name'])}** · {html.escape(med['strength'])}")
+                    st.markdown(f"**{html_text(med['name'])}** · {html_text(med['strength'])}")
                     st.caption(f"Scheduled {med['time']} · {med['instructions']}")
                     state = medication_state(med, workspace["dose_reports"])
                     if med.get("active", True):
@@ -618,7 +618,7 @@ elif section == "Prescription library":
         st.info("No prescription documents saved yet. Add a PDF or image above.")
     for prescription in saved_prescriptions:
         with st.container(border=True):
-            st.markdown(f"**{html.escape(prescription['document_label'])}**")
+            st.markdown(f"**{html_text(prescription['document_label'])}**")
             detail_parts = [
                 f"Date: {prescription.get('prescribed_on', 'Not recorded')}",
                 f"File: {prescription.get('file_name', 'Document')}",
@@ -815,9 +815,9 @@ elif section == "Health journal":
             st.markdown("**Add an observation**")
             with st.form("health_observation"):
                 metric = st.selectbox("Observation", ["Daily steps", "Sleep duration", "Resting heart rate", "Blood pressure — systolic", "Blood pressure — diastolic", "Blood glucose", "Weight", "Other"])
-                value = st.number_input("Recorded value", value=0.0, step=0.1, format="%.2f")
+                value = st.number_input("Recorded value", min_value=0.0, value=0.0, step=0.1, format="%.2f")
                 unit_default = {"Daily steps":"steps","Sleep duration":"hours","Resting heart rate":"bpm","Blood pressure — systolic":"mmHg","Blood pressure — diastolic":"mmHg","Blood glucose":"mg/dL","Weight":"kg"}.get(metric, "")
-                unit = st.text_input("Unit", value=unit_default)
+                unit = st.text_input("Unit", value=unit_default, max_chars=32)
                 source_options = (
                     ["Entered by family", "Entered by elder", "Wearable / device record", "Clinic report"]
                     if cloud_active else
@@ -972,7 +972,7 @@ elif section == "Emergency centre":
         with st.container(border=True):
             st.markdown("**Configured escalation order**")
             for contact in sorted(workspace["contacts"], key=lambda x: x["priority"]):
-                st.markdown(f"**{contact['priority']}. {contact['name']}**  \n<span class='vl-small'>{contact['relationship']}</span>", unsafe_allow_html=True)
+                st.markdown(f"**{contact['priority']}. {html_text(contact['name'])}**  \n<span class='vl-small'>{html_text(contact['relationship'])}</span>", unsafe_allow_html=True)
             st.caption("Real alert delivery needs verified contact channels, consent, network checks and delivery receipts.")
     active = active_emergency_events()
     if active:

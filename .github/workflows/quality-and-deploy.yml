@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: github-pages
@@ -39,6 +37,10 @@ jobs:
 
   deploy:
     needs: quality
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
