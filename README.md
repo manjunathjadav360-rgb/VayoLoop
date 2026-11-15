@@ -21,6 +21,32 @@ The Streamlit application entry point is **`app.py`**.
 
 No secrets are required for the synthetic-data demo. Do not add real patient information or credentials to this public repository.
 
+
+## Private health and prescription records (Supabase)
+
+The VayoLoop Supabase project provides authenticated persistence for **health observations** and **prescription documents**:
+
+- Health readings are stored in \`public.health_observations\`.
+- Prescription details are stored in \`public.prescription_records\`; original PDFs/images are stored in the private \`vayoloop-prescriptions\` Storage bucket.
+- The first successful sign-in creates a care profile and owner membership.
+- Existing row-level security and Storage policies restrict access by care-circle membership and role. Family members can read records; only owners, elders and caregivers can add or manage prescriptions.
+- The app uses a **publishable key only**. Never put a Supabase service-role key in Streamlit secrets or this repository.
+
+### Configure Streamlit Community Cloud secrets
+
+In the Streamlit app dashboard, open **App settings → Secrets** and add:
+
+\`\`\`toml
+SUPABASE_URL = "https://vhugnytmbjktbhlspgyx.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_... paste the VayoLoop project's publishable key ..."
+\`\`\`
+
+Save the secrets and reboot the app. Use the project's **publishable** key from Supabase Project Settings / API Keys. Do not use a service-role or secret key. Users can then create an account or sign in from the app's sidebar. Hosted Supabase email confirmation may be required before first sign-in.
+
+Only health observations and prescription records currently persist. Medicines, appointments, family tasks, connected devices, voice reminders and emergency workflows are still synthetic/session-only demo features.
+
+**Privacy limit:** VayoLoop is a hackathon prototype, not a clinically validated or compliance-certified medical-record system. Use fictional data for judging and testing. Do not upload real patient records until professional security, privacy, consent, legal and operational reviews are completed.
+
 ## What the demo includes
 
 - **Elder-first home:** short greeting, daily overview, larger-text option and simple navigation.
