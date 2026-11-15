@@ -71,6 +71,10 @@
         });
       }
     }
+    const firstSampleReport = dateOffset(0,8,5);
+    if (now().getTime() >= firstSampleReport.getTime()) {
+      doseReports.push({id:makeId('dose'),medicationId:'med-a',at:iso(firstSampleReport)});
+    }
     const events = [
       {id:makeId('ev'),title:'Morning routine reported',detail:'Medicine A · user-reported in demo',at:iso(dateOffset(0,8,5)),kind:'medication'},
       {id:makeId('ev'),title:'Demo watch sample synced',detail:'Steps and sleep sample readings',at:iso(dateOffset(0,8,30)),kind:'device'},
@@ -628,22 +632,31 @@
   function renderMeds() {
     const active = state.meds.filter(m => m.active).sort((a,b) => a.time.localeCompare(b.time));
     const today = todayReports();
+    const statusFor = med => {
+      if (today.some(report=>report.medicationId===med.id)) return {label:'Reported',tone:'',reported:true};
+      const [hour,minute] = med.time.split(':').map(Number);
+      const due = new Date(startOfDay(now())); due.setHours(hour,minute,0,0);
+      const minutes = (now().getTime()-due.getTime())/60000;
+      if (minutes>=30) return {label:'Missed',tone:'amber',reported:false};
+      if (minutes>=0) return {label:'Due now',tone:'amber',reported:false};
+      return {label:'Upcoming',tone:'neutral',reported:false};
+    };
     const row = med => {
-      const reportedToday = today.some(r => r.medicationId === med.id);
+      const status = statusFor(med);
       const action = canEditDemo()
-        ? (reportedToday ? '<span class="pill">Reported</span>' : '<button class="btn light small" data-dose="' + esc(med.id) + '">Mark reported</button>')
+        ? (status.reported ? '<span class="pill">Reported</span>' : '<button class="btn light small" data-dose="' + esc(med.id) + '">Mark reported</button>')
         : '<span class="pill neutral">Read only</span>';
-      return '<div class="item"><div><strong>' + esc(med.name) + ' <span class="pill neutral">' + esc(med.time) + '</span></strong>' +
+      return '<div class="item"><div><strong>' + esc(med.name) + ' <span class="pill ' + status.tone + '">' + esc(med.time) + '</span></strong>' +
         '<small>' + esc(med.strength || 'Sample label') + ' · ' + esc(med.instructions || 'No demo note') + '</small></div>' +
-        '<div class="item-actions">' + action + '</div></div>';
+        '<div class="item-actions"><span class="pill ' + status.tone + '">' + status.label + '</span>' + action + '</div></div>';
     };
     $('todayMeds').innerHTML = active.length ? active.map(row).join('') : empty('No active demo medication records.');
     $('medList').innerHTML = state.meds.length ? state.meds.map(med => {
-      const todayReported = today.some(r => r.medicationId === med.id);
+      const status = statusFor(med);
       let actions = '<span class="pill neutral">Read only</span>';
       if (canEditDemo()) {
         actions = med.active
-          ? (todayReported ? '<span class="pill">Reported today</span>' : '<button class="btn light small" data-dose="' + esc(med.id) + '">Report dose</button>') +
+          ? (status.reported ? '<span class="pill">Reported today</span>' : '<button class="btn light small" data-dose="' + esc(med.id) + '">Report dose</button>') +
             '<button class="btn ghost small" data-archive="' + esc(med.id) + '">Archive</button>'
           : '<button class="btn ghost small" data-restore="' + esc(med.id) + '">Restore</button>';
       }
@@ -664,7 +677,8 @@
     state.doseReports.push({id:makeId('dose'),medicationId:id,at});
     med.lastReportedAt = at;
     state.events.unshift({id:makeId('ev'),title:'Dose reported in demo',detail:med.name + ' · self-reported, not independently verified',at,kind:'medication'});
-    save(); render(); toast('Demo dose report saved.');
+    if (activeAlarm && activeAlarm.id === id) stopAlarm();
+    save(); render(); toast('Demo dose report saved. This is a self-report, not independent verification.');
   }
 
   function setMedicationActive(id, active) {
@@ -838,6 +852,8 @@
     renderDevices();
     renderCare();
     renderTimeline();
+    renderMissedDosePanel();
+    updateVoiceControls();
   }
 
   $('medForm').addEventListener('submit', event => {
