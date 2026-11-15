@@ -397,7 +397,7 @@ class VayoLoopDatabaseMappingTests(unittest.TestCase):
 
 
     def test_committed_wearable_sample_csv_is_importable(self):
-        sample_path = Path(__file__).resolve().parents[1] / "examples" / "wearable_export_sample.csv"
+        sample_path = Path(__file__).resolve().parents[1] / "examples" / "vayoloop_wearable_demo.csv"
         rows, duplicates = parse_health_observations_csv(sample_path.read_bytes())
         self.assertEqual(len(rows), 7)
         self.assertEqual(duplicates, 0)
