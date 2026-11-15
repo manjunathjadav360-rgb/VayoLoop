@@ -11,6 +11,8 @@ from vayoloop_db import (
     delete_prescription_record,
     download_prescription_file,
     save_prescription_record,
+    parse_health_observations_csv,
+    save_health_observations,
 )
 
 
@@ -255,6 +257,142 @@ class VayoLoopDatabaseMappingTests(unittest.TestCase):
                 "",
                 "",
             )
+
+
+    def test_wearable_csv_import_parses_required_columns_and_optional_source(self):
+        payload = (
+            "metric,value,unit,observed_at,source\n"
+            "Daily steps,4100,steps,2026-11-15T08:00:00+05:30,Example watch\n"
+            "Sleep duration,7.1,hours,2026-11-14T07:30:00+05:30,\n"
+        ).encode("utf-8")
+        rows, duplicates = parse_health_observations_csv(payload)
+        self.assertEqual(duplicates, 0)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["metric"], "Daily steps")
+        self.assertEqual(rows[0]["value"], 4100.0)
+        self.assertEqual(rows[1]["source"], "Imported wearable CSV")
+
+    def test_wearable_csv_import_skips_duplicates_in_file_and_existing_history(self):
+        payload = (
+            "metric,value,unit,observed_at\n"
+            "Daily steps,4100,steps,2026-11-15T08:00:00+05:30\n"
+            "Daily steps,4100,steps,2026-11-15T02:30:00+00:00\n"
+            "Sleep duration,7,hours,2026-11-15T07:00:00+05:30\n"
+        ).encode("utf-8")
+        existing = [{
+            "metric": "daily steps",
+            "value": 4100,
+            "unit": "STEPS",
+            "observed_at": "2026-11-15T02:30:00+00:00",
+            "source": "Existing device import",
+        }]
+        rows, duplicates = parse_health_observations_csv(payload, existing_records=existing)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["metric"], "Sleep duration")
+        self.assertEqual(duplicates, 2)
+
+    def test_wearable_csv_import_rejects_missing_columns_and_naive_timestamps(self):
+        with self.assertRaisesRegex(ValueError, "missing required column"):
+            parse_health_observations_csv(
+                b"metric,value,observed_at\nDaily steps,4100,2026-11-15T08:00:00+05:30\n"
+            )
+        with self.assertRaisesRegex(ValueError, "timezone"):
+            parse_health_observations_csv(
+                b"metric,value,unit,observed_at\nDaily steps,4100,steps,2026-11-15T08:00:00\n"
+            )
+
+    def test_wearable_csv_import_rejects_bad_values_and_oversized_payload(self):
+        bad_rows = [
+            b"Daily steps,-1,steps,2026-11-15T08:00:00+05:30",
+            b"Daily steps,NaN,steps,2026-11-15T08:00:00+05:30",
+            b"Daily steps,not-a-number,steps,2026-11-15T08:00:00+05:30",
+        ]
+        for row in bad_rows:
+            with self.subTest(row=row):
+                with self.assertRaises(ValueError):
+                    parse_health_observations_csv(
+                        b"metric,value,unit,observed_at\n" + row + b"\n"
+                    )
+        with self.assertRaisesRegex(ValueError, "2 MB or smaller"):
+            parse_health_observations_csv(b"x" * (2 * 1024 * 1024 + 1))
+
+    def test_wearable_csv_import_enforces_row_limit(self):
+        rows = ["metric,value,unit,observed_at"]
+        rows.extend(
+            f"Daily steps,{index},steps,2026-11-15T08:00:00+05:30"
+            for index in range(501)
+        )
+        with self.assertRaisesRegex(ValueError, "no more than 500"):
+            parse_health_observations_csv("\n".join(rows).encode("utf-8"))
+
+    def test_bulk_health_save_validates_entire_batch_before_database_call(self):
+        class NeverCalledQuery:
+            def insert(self, _payload):
+                raise AssertionError("No insert should happen until every row passes validation.")
+
+        class Client:
+            def table(self, _name):
+                return NeverCalledQuery()
+
+        observations = [
+            {
+                "metric": "Daily steps",
+                "value": 4100,
+                "unit": "steps",
+                "observed_at": "2026-11-15T08:00:00+05:30",
+                "source": "Wearable CSV",
+            },
+            {
+                "metric": "Sleep duration",
+                "value": -1,
+                "unit": "hours",
+                "observed_at": "2026-11-15T08:00:00+05:30",
+                "source": "Wearable CSV",
+            },
+        ]
+        with self.assertRaisesRegex(ValueError, "Observation 2"):
+            save_health_observations(Client(), observations)
+
+    def test_bulk_health_save_inserts_all_validated_rows_in_one_call(self):
+        class Query:
+            def insert(self, payload):
+                self.payload = payload
+                return self
+            def execute(self):
+                self.executed = True
+
+        class Client:
+            def __init__(self):
+                self.query = Query()
+                self.table_name = None
+            def table(self, name):
+                self.table_name = name
+                return self.query
+
+        client = Client()
+        observations = [
+            {
+                "metric": "Daily steps",
+                "value": 4100,
+                "unit": "steps",
+                "observed_at": "2026-11-15T08:00:00+05:30",
+                "source": "Wearable CSV",
+            },
+            {
+                "metric": "Sleep duration",
+                "value": 7.1,
+                "unit": "hours",
+                "observed_at": "2026-11-15T07:30:00+05:30",
+                "source": "Wearable CSV",
+            },
+        ]
+        save_health_observations(client, observations)
+        self.assertEqual(client.table_name, "vayoloop_demo_health_observations")
+        self.assertTrue(client.query.executed)
+        self.assertEqual(len(client.query.payload), 2)
+        self.assertTrue(
+            all(item["workspace_id"] == DEMO_WORKSPACE_ID for item in client.query.payload)
+        )
 
 if __name__ == "__main__":
     unittest.main()
