@@ -59,7 +59,7 @@ VayoLoop supports a **user-initiated CSV file import** in **Health Journal**. It
 - Maximum file size: **2 MB**.
 - Maximum import size: **500 non-empty data rows**.
 - UTF-8 and UTF-8-with-BOM are supported.
-- Missing required columns, malformed rows, non-finite values and timezone-naive timestamps are rejected.
+- Missing or duplicate headers, rows with extra fields, malformed rows, boolean/non-finite values and timezone-naive timestamps are rejected.
 - Duplicate comparison uses metric and unit (case-insensitive), numeric value, and the observation instant normalised to UTC.
 - In offline/test mode, validated readings are held in the current Streamlit session; with cloud persistence active, the batch is written to the shared demo table.
 - CSV data is user-supplied. The import does not authenticate a device, verify a manufacturer's signature or prove that a reading came from a physical wearable.
