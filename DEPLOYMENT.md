@@ -19,7 +19,7 @@ The GitHub Actions workflow runs:
 1. JavaScript syntax, interactive wiring, safety and accessibility smoke checks.
 2. Ruff lint checks for Python modules and tests.
 3. Python syntax compilation.
-4. Unit tests for medicine status, health trends, database validation, security encoders and Care Passport output.
+4. Unit tests for medicine status, health trends, wearable CSV parsing and duplicate suppression, atomic batch validation, prescription upload cleanup, security encoders and Care Passport output.
 5. Streamlit page-render tests for every main section.
 6. GitHub Pages deployment of the legacy static preview after the quality checks pass.
 

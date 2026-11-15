@@ -97,3 +97,7 @@ assert.ok(contrastRatio('#79531e', '#f8f0df') >= 4.5, 'Warning labels must meet 
 assert.match(streamlit, /id="voiceStatus" role="status" aria-live="polite"/, 'Voice status updates must be announced to assistive technology');
 console.log('VayoLoop demo, voice companion, interaction, safety and accessibility smoke checks passed.');
 
+
+assert.match(streamlit, /Import a wearable \/ health-app export/, 'The Health Journal must expose the wearable CSV import');
+assert.match(streamlit, /parse_health_observations_csv/, 'The Streamlit UI must call the validated wearable CSV parser');
+assert.match(streamlit, /save_health_observations/, 'Wearable readings must be persisted with the validated batch-save function');
