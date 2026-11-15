@@ -235,6 +235,14 @@ def active_emergency_events() -> list[dict]:
     return [event for event in st.session_state.workspace["emergency_events"] if event["status"] not in closed]
 
 
+def update_emergency_event(updated: dict) -> None:
+    events = st.session_state.workspace["emergency_events"]
+    for index, event in enumerate(events):
+        if event["id"] == updated["id"]:
+            events[index] = updated
+            return
+
+
 def status_badge(status: str) -> str:
     if "Overdue" in status or "Urgent" in status or "Awaiting" in status:
         return "🔸"
@@ -400,7 +408,7 @@ elif section == "Medicines":
             with st.form("add_medicine"):
                 name = st.text_input("Medicine label", placeholder="Medicine D")
                 strength = st.text_input("Strength / label", placeholder="As written on the prescription")
-                med_time = st.time_input("Reminder time", value=time(9, 0), step=300)
+                med_time = st.time_input("Reminder time", value=time(9, 0), step=timedelta(minutes=5))
                 instructions = st.text_input("Routine note", placeholder="Example: after breakfast")
                 stock = st.number_input("Approximate supply units", min_value=0, max_value=365, value=14)
                 if st.form_submit_button("Add medicine record", type="primary", use_container_width=True):
@@ -477,7 +485,7 @@ elif section == "Appointments":
                 title = st.text_input("Visit / appointment", placeholder="Follow-up visit")
                 provider = st.text_input("Doctor / clinic", placeholder="Clinic name")
                 visit_date = st.date_input("Date", value=today + timedelta(days=2), min_value=today)
-                visit_time = st.time_input("Time", value=time(10, 0), step=300)
+                visit_time = st.time_input("Time", value=time(10, 0), step=timedelta(minutes=5))
                 note = st.text_input("Bring / remember", placeholder="Reports, prescription, questions")
                 if st.form_submit_button("Add appointment", type="primary", use_container_width=True):
                     if not title.strip():
@@ -589,11 +597,11 @@ elif section == "Emergency centre":
                 c1, c2 = st.columns(2)
                 if c1.button("Person responds: I'm okay", type="primary", use_container_width=True):
                     updated = close_emergency_event(event, safe=True)
-                    workspace["emergency_events"][0] = updated
+                    update_emergency_event(updated)
                     add_event("Safety check closed", "Person confirmed okay in the demo flow.")
                     st.rerun()
                 if c2.button("No response · simulate escalation", use_container_width=True):
-                    workspace["emergency_events"][0] = escalate_emergency(event)
+                    update_emergency_event(escalate_emergency(event))
                     add_event("Emergency escalation simulated", "Family contact alerts queued in demo only.")
                     st.rerun()
             else:
@@ -606,11 +614,11 @@ elif section == "Emergency centre":
                     if contact_update["status"] != "Acknowledged in demo" and event["status"] != "Closed · demo resolved":
                         if c2.button("Acknowledge", key=f"ack_{event['id']}_{contact_update['contact_id']}"):
                             updated = acknowledge_emergency_contact(event, contact_update["contact_id"])
-                            workspace["emergency_events"][0] = updated
+                            update_emergency_event(updated)
                             add_event("Family alert acknowledged · demo", f"{contact_update['name']} acknowledged.")
                             st.rerun()
                 if st.button("Close emergency test", use_container_width=True):
-                    workspace["emergency_events"][0] = close_emergency_event(event)
+                    update_emergency_event(close_emergency_event(event))
                     st.success("Demo event closed.")
                     st.rerun()
     else:
