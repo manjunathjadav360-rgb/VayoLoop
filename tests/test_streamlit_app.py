@@ -20,6 +20,12 @@ SECTIONS = [
 
 
 class StreamlitPageSmokeTests(unittest.TestCase):
+    def test_source_uses_current_streamlit_embedding_and_width_apis(self):
+        source = APP_PATH.read_text(encoding="utf-8")
+        self.assertIn("st.iframe(", source)
+        self.assertNotIn("components.v1.html", source)
+        self.assertNotIn("use_container_width", source)
+
     def test_every_main_section_renders_without_exception(self):
         for section in SECTIONS:
             with self.subTest(section=section):
