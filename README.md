@@ -16,6 +16,65 @@ streamlit run app.py
 - [90–120 second judge walkthrough](JUDGE_WALKTHROUGH.md)
 - Quality checks: `npm run check`, `ruff check .`, and `python -m unittest discover -s tests -v`.
 
+## Architecture at a glance
+
+The Streamlit app is the primary product. Responsibilities are deliberately separated:
+
+| Component | Owns | Boundary |
+|---|---|---|
+| `app.py` | Pages, forms, user confirmation and session orchestration | Presentation only; no diagnosis or treatment decisions |
+| `vayoloop_core.py` | Medication-state transitions and numerical health-trend summaries | Pure domain logic; no database or clinical interpretation |
+| `vayoloop_db.py` | Supabase mapping, input validation, CSV parsing/batch writes and prescription-file operations | Persistence adapter; fixed shared demo workspace |
+| `care_passport.py` | Read-only handoff snapshot, administrative completeness review and HTML export | Does not modify records or assess clinical correctness |
+| `vayoloop_security.py` | Context-specific HTML and script-data encoding | Encodes untrusted values before output |
+| `tests/` | Domain, database-adapter, security, import and page-render regression tests | Uses synthetic fixtures; no physical wearable or real patient data |
+
+For the complete component diagram, data ownership, trust boundaries and failure handling, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Wearable / health-app CSV import
+
+VayoLoop supports a **user-initiated CSV file import** in **Health Journal**. It is not a Bluetooth connection, live wearable sync or vendor API integration.
+
+**Import sequence**
+
+1. The user selects a CSV export.
+2. The parser checks the file-size limit, UTF-8 encoding and required headers.
+3. Each non-empty row is validated and normalised; timestamps must include a timezone.
+4. Duplicate readings are identified within the uploaded file and against the health history loaded in the demo workspace.
+5. The app displays an import preview and duplicate count.
+6. Nothing is written until the user confirms.
+7. The complete batch is validated again and, when cloud persistence is active, inserted with one Supabase bulk request.
+8. The Health Journal reloads the saved readings and updates its numerical summaries.
+
+**CSV format**
+
+| Column | Required | Rule |
+|---|---|---|
+| `metric` | Yes | Non-empty observation label; maximum 120 characters |
+| `value` | Yes | Finite, non-negative number; no clinical threshold is applied |
+| `unit` | Yes | Unit label; maximum 32 characters |
+| `observed_at` | Yes | ISO-8601 date/time with an explicit timezone offset |
+| `source` | No | Defaults to `Imported wearable CSV`; maximum 100 characters |
+
+- Maximum file size: **2 MB**.
+- Maximum import size: **500 non-empty data rows**.
+- UTF-8 and UTF-8-with-BOM are supported.
+- Missing required columns, malformed rows, non-finite values and timezone-naive timestamps are rejected.
+- Duplicate comparison uses metric and unit (case-insensitive), numeric value, and the observation instant normalised to UTC.
+- In offline/test mode, validated readings are held in the current Streamlit session; with cloud persistence active, the batch is written to the shared demo table.
+- CSV data is user-supplied. The import does not authenticate a device, verify a manufacturer's signature or prove that a reading came from a physical wearable.
+
+**Try it:** use the [fictional sample wearable CSV](examples/wearable_export_sample.csv). The [judge walkthrough](JUDGE_WALKTHROUGH.md#demo-path) includes the live demonstration sequence.
+
+### CSV import test coverage
+
+The automated suite includes dedicated cases for required and optional columns, valid sample import, duplicates, missing headers, timezone-naive timestamps, invalid values, oversized files, row limits, full-batch validation and one-request batch insertion. Run the suite locally with:
+
+```bash
+VAYOLOOP_DISABLE_PERSISTENCE=1 python -m unittest discover -s tests -v
+```
+
+
 ## Streamlit deployment
 
 The Streamlit application entry point is **`app.py`**.
@@ -54,7 +113,7 @@ Only health observations and prescription records currently persist. Medicines, 
 - **Voice companion:** optional one-time browser audio enablement; attempts a spoken welcome and checks scheduled sample medicine and appointment reminders while the page remains open. Reminder phrases include English, Hindi, Kannada, Gujarati, Marathi, Tamil, Telugu and Bengali.
 - **Medication journey:** sample medicine records, scheduled times, self-reported dose events, overdue-unconfirmed state, refill planning, and optional links from medicine entries to the source prescription document. The link is for record traceability only, not clinical suitability checking.
 - **Prescription library:** store PDF or image copies, metadata and the original file in the shared demo workspace; download or delete demo files. This prototype does not run OCR or medicine-disease checks.
-- **Health record book:** timestamped readings with source labels, personal comparisons and CSV / JSON export. Readings persist in the shared demo workspace. It can also import up to 500 validated, timezone-aware readings from a wearable / health-app CSV export, preview them, skip duplicates and save the batch in one database request. This is a user-initiated file import, not a live device integration. It validates and previews the batch, skips duplicate readings and writes only after confirmation. See [Architecture and trust boundaries](ARCHITECTURE.md#architecture-and-trust-boundaries). [Download the sample CSV](examples/wearable_export_sample.csv).
+- **Health record book:** timestamped readings with source labels, personal comparisons and CSV / JSON export. Readings persist in the shared demo workspace. The Health Journal also supports a user-confirmed import of up to 500 validated, timezone-aware readings from a wearable / health-app CSV export, with preview, duplicate detection and a single batch database request. This is file import, not live device integration. See [Wearable / health-app CSV import](#wearable--health-app-csv-import) and [the sample CSV](examples/wearable_export_sample.csv).
 - **Daily wellbeing check-in:** simple family check-in for meals, water, mood and optional notes; not a clinical assessment.
 - **Health journal:** timestamped observations, chronological charts, per-metric/unit trend summaries, latest-vs-previous comparisons, and rolling averages (latest three entries vs the preceding three when enough history exists). Trend direction describes recorded numbers only; it is not a diagnosis or a judgement that a value is medically good or bad.
 - **Appointments:** create and complete appointment records.
