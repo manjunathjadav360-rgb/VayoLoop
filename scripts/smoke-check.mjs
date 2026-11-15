@@ -26,11 +26,23 @@ assert.doesNotMatch(html, /id="(signIn|signUp|email|password)"/, 'The public dem
 assert.doesNotMatch(app, /supabase|createClient|signInWithPassword|auth\.getSession/i, 'The public demo must not call Supabase Auth');
 assert.doesNotMatch(app, /fetch\s*\(/, 'The public demo must not call external APIs');
 assert.ok(app.includes('localStorage'), 'Demo changes should persist locally in the browser');
-assert.ok(app.includes('simulateAlert'), 'The safety-alert demo control must be implemented');
-assert.ok(app.includes('simulateSync'), 'The device-sync demo control must be implemented');
+
+for (const id of ['enableVoice','readHealth','voiceCommands','stopSpeech','stopAlarm','testMissedDose','missedDoseNotice']) {
+  assert.ok(ids.includes(id), 'Missing voice companion control: ' + id);
+}
+for (const feature of ['enableVoiceCompanion','healthBriefing','evaluateVoiceReminders','startAlarm','getMissedDoses','startVoiceCommands','SpeechSynthesisUtterance','SpeechRecognition']) {
+  assert.ok(app.includes(feature), 'Missing voice-first feature: ' + feature);
+}
+assert.ok(app.includes('window.setInterval(evaluateVoiceReminders,15000)'), 'Voice reminders should be checked while the demo page is open');
+assert.ok(app.includes('30*60*1000'), 'Missed-dose alarm should use a defined grace period');
 assert.ok(app.includes('reportDose'), 'Medication reporting must be interactive');
 assert.ok(app.includes('renderTrends'), 'Health progress trends must be rendered');
+assert.ok(app.includes('localStorage.setItem(\'vayoloop_voice_enabled\''), 'Voice preference should persist between visits');
+
+for (const id of ['simulateAlert','simulateSync']) assert.ok(ids.includes(id), 'Missing connected living demo control: ' + id);
 assert.match(html, /not a medical device or emergency service/i, 'Medical and emergency limitations must remain visible');
 assert.match(html, /does not connect to a real smartwatch/i, 'Device simulation must not be presented as a live connection');
+assert.match(app, /not a real medication alert/i, 'Spoken content must identify demo-only medication reminders');
+assert.match(html, /role="dialog"/, 'The guided tour must use dialog semantics');
 
-console.log('VayoLoop demo smoke checks passed.');
+console.log('VayoLoop demo, voice companion, interaction and safety smoke checks passed.');
