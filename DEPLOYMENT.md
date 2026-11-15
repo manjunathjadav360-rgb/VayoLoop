@@ -36,3 +36,26 @@ This is the older HTML/JavaScript preview, not the new Streamlit app.
 - No automated 112 call, dispatch, SMS, WhatsApp, email or push delivery is implemented.
 - Browser voice alerts depend on browser permissions and the page being open.
 - No real patient or emergency data should be entered.
+
+
+## Configure private record persistence
+
+The database project and schema are provisioned separately from the Streamlit app. To connect the deployed app:
+
+1. Open the Streamlit Community Cloud dashboard and select the VayoLoop app.
+2. Open **App settings → Secrets**.
+3. Add the following TOML, replacing the placeholder with the VayoLoop project's **publishable** API key:
+
+\`\`\`toml
+SUPABASE_URL = "https://vhugnytmbjktbhlspgyx.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_..."
+\`\`\`
+
+4. Save and reboot the app.
+5. In the app sidebar, create an account or sign in. If email confirmation is enabled, confirm the email before signing in.
+6. Add a fictional health observation and a fictional prescription file, refresh the page, sign in again if needed, and confirm both records remain.
+
+The app uses the publishable key with user authentication. Never place a service-role or secret key in Streamlit secrets. Database tables have row-level security; prescription files are in a private Storage bucket with care-circle role policies.
+
+Only the Health Journal and Prescription Library are persistent at this stage. Other sections remain synthetic demo workflows. Do not upload real patient records to this public hackathon prototype.
+
