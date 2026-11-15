@@ -126,5 +126,36 @@ class CarePassportTests(unittest.TestCase):
         self.assertEqual(workspace, before)
 
 
+
+    def test_handoff_review_flags_stale_appointments_and_overdue_tasks(self):
+        self.workspace["appointments"][0]["when"] = "2026-11-14T11:30:00+05:30"
+        self.workspace["tasks"][0]["due"] = "2026-11-14T19:00:00+05:30"
+        checks = {
+            item["area"]: item
+            for item in analyse_handoff_completeness(
+                self.workspace,
+                now=datetime(2026, 11, 15, 10, 30, tzinfo=INDIA_TZ),
+            )
+        }
+        self.assertEqual(checks["Appointments"]["status"], "Needs review")
+        self.assertIn("1 scheduled visit(s) are in the past", checks["Appointments"]["details"])
+        self.assertEqual(checks["Family care tasks"]["status"], "Needs review")
+        self.assertIn("1 uncompleted task(s) are past due", checks["Family care tasks"]["details"])
+
+    def test_handoff_review_flags_duplicate_contact_priorities_and_invalid_health_values(self):
+        self.workspace["contacts"][1]["priority"] = self.workspace["contacts"][0]["priority"]
+        self.workspace["health"][0]["value"] = -1
+        self.workspace["health"][1]["value"] = True
+        checks = {
+            item["area"]: item
+            for item in analyse_handoff_completeness(
+                self.workspace,
+                now=datetime(2026, 11, 15, 10, 30, tzinfo=INDIA_TZ),
+            )
+        }
+        self.assertEqual(checks["Trusted contacts"]["status"], "Needs review")
+        self.assertIn("1 duplicate priority value(s)", checks["Trusted contacts"]["details"])
+        self.assertEqual(checks["Health observations"]["status"], "Needs review")
+
 if __name__ == "__main__":
     unittest.main()

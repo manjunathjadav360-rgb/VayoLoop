@@ -275,9 +275,17 @@ footer{{color:var(--muted);font-size:11px;text-align:center;padding:15px}}
 </main></body></html>"""
 
 
-def analyse_handoff_completeness(workspace: dict[str, Any]) -> list[dict[str, Any]]:
-    """Check administrative handoff completeness without assessing clinical suitability."""
+def analyse_handoff_completeness(
+    workspace: dict[str, Any],
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Check handoff data quality and stale items, without clinical interpretation."""
     from math import isfinite
+
+    current = now or india_now()
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=INDIA_TZ)
+    current = current.astimezone(INDIA_TZ)
 
     def has_text(value: Any) -> bool:
         if value is None:
@@ -287,12 +295,14 @@ def analyse_handoff_completeness(workspace: dict[str, Any]) -> list[dict[str, An
             "not entered", "not recorded", "not specified", "not set", "unknown", "—"
         }
 
-    def has_aware_timestamp(value: Any) -> bool:
+    def parse_aware_timestamp(value: Any) -> datetime | None:
         try:
             parsed = datetime.fromisoformat(str(value or "").replace("Z", "+00:00"))
         except (TypeError, ValueError, OverflowError):
-            return False
-        return parsed.tzinfo is not None and parsed.utcoffset() is not None
+            return None
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed.astimezone(INDIA_TZ)
 
     def make_check(
         area: str,
@@ -302,7 +312,7 @@ def analyse_handoff_completeness(workspace: dict[str, Any]) -> list[dict[str, An
     ) -> dict[str, Any]:
         status = (
             "No records" if not records
-            else "Needs details" if review_items
+            else "Needs review" if review_items
             else "Ready for review"
         )
         return {
@@ -360,8 +370,10 @@ def analyse_handoff_completeness(workspace: dict[str, Any]) -> list[dict[str, An
             prescription_issues += 1
 
     health_issues = 0
+    future_health_records = 0
     for item in health:
-        if not has_text(item.get("metric")) or not has_aware_timestamp(item.get("observed_at")):
+        observed = parse_aware_timestamp(item.get("observed_at"))
+        if not has_text(item.get("metric")) or observed is None:
             health_issues += 1
             continue
         value = item.get("value")
@@ -370,35 +382,71 @@ def analyse_handoff_completeness(workspace: dict[str, Any]) -> list[dict[str, An
         except (TypeError, ValueError, OverflowError):
             health_issues += 1
             continue
-        if isinstance(value, bool) or not isfinite(numeric) or not has_text(item.get("source")):
+        if (
+            isinstance(value, bool)
+            or not isfinite(numeric)
+            or numeric < 0
+            or not has_text(item.get("source"))
+        ):
+            health_issues += 1
+        if observed > current + timedelta(minutes=5):
+            future_health_records += 1
             health_issues += 1
 
-    appointment_issues = sum(
-        1 for item in appointments
-        if not has_text(item.get("title"))
-        or not has_text(item.get("provider"))
-        or not has_aware_timestamp(item.get("when"))
-        or not has_text(item.get("status"))
-    )
+    appointment_issues = 0
+    stale_appointments = 0
+    for item in appointments:
+        visit_time = parse_aware_timestamp(item.get("when"))
+        missing_details = (
+            not has_text(item.get("title"))
+            or not has_text(item.get("provider"))
+            or visit_time is None
+            or not has_text(item.get("status"))
+        )
+        if missing_details:
+            appointment_issues += 1
+        elif str(item.get("status")).strip().casefold() == "scheduled" and visit_time < current:
+            stale_appointments += 1
+            appointment_issues += 1
+
     contact_issues = 0
+    seen_priorities: set[int] = set()
+    duplicate_priorities = 0
     for item in contacts:
         try:
             priority = int(item.get("priority"))
         except (TypeError, ValueError, OverflowError):
             priority = 0
-        if (
+        invalid_contact = (
             not has_text(item.get("name"))
             or not has_text(item.get("relationship"))
             or priority < 1
-        ):
+        )
+        if invalid_contact:
             contact_issues += 1
-    task_issues = sum(
-        1 for item in tasks
-        if not has_text(item.get("title"))
-        or not has_text(item.get("assignee"))
-        or not has_aware_timestamp(item.get("due"))
-        or not has_text(item.get("status"))
-    )
+        elif priority in seen_priorities:
+            duplicate_priorities += 1
+            contact_issues += 1
+        else:
+            seen_priorities.add(priority)
+
+    task_issues = 0
+    overdue_tasks = 0
+    completed_states = {"completed", "cancelled", "canceled"}
+    for item in tasks:
+        due_time = parse_aware_timestamp(item.get("due"))
+        status = str(item.get("status") or "").strip()
+        missing_details = (
+            not has_text(item.get("title"))
+            or not has_text(item.get("assignee"))
+            or due_time is None
+            or not has_text(status)
+        )
+        if missing_details:
+            task_issues += 1
+        elif status.casefold() not in completed_states and due_time < current:
+            overdue_tasks += 1
+            task_issues += 1
 
     return [
         make_check(
@@ -421,24 +469,36 @@ def analyse_handoff_completeness(workspace: dict[str, Any]) -> list[dict[str, An
             "Health observations",
             health,
             health_issues,
-            "Checks metric, numeric value, timestamp and source fields only; no health interpretation.",
+            (
+                "Checks metric, finite non-negative numeric value, timezone-aware timestamp and source; "
+                f"{future_health_records} future-dated record(s). No health interpretation."
+            ),
         ),
         make_check(
             "Appointments",
             appointments,
             appointment_issues,
-            "Checks visit label, provider, timezone-aware time and status.",
+            (
+                "Checks visit label, provider, timezone-aware time and status; "
+                f"{stale_appointments} scheduled visit(s) are in the past."
+            ),
         ),
         make_check(
             "Trusted contacts",
             contacts,
             contact_issues,
-            "Checks contact name, relationship and a positive contact priority.",
+            (
+                "Checks contact name, relationship and positive unique priorities; "
+                f"{duplicate_priorities} duplicate priority value(s)."
+            ),
         ),
         make_check(
             "Family care tasks",
             tasks,
             task_issues,
-            "Checks task label, assigned person, timezone-aware due time and status.",
+            (
+                "Checks task label, assigned person, timezone-aware due time and status; "
+                f"{overdue_tasks} uncompleted task(s) are past due."
+            ),
         ),
     ]
