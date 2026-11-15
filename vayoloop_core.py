@@ -144,6 +144,113 @@ def medication_state(medication: dict, reports: list[dict], now: datetime | None
     return "Overdue · unconfirmed"
 
 
+
+def analyse_health_trends(
+    records: list[dict],
+    now: datetime | None = None,
+    window_size: int = 3,
+) -> list[dict]:
+    """Summarise numeric history by metric and unit without making clinical judgements.
+
+    A rolling comparison is returned only when there are enough observations for
+    two complete windows. Values are never labelled as medically good or bad.
+    """
+    from math import isfinite
+
+    if window_size < 1:
+        raise ValueError("window_size must be at least 1")
+
+    current = now or india_now()
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=INDIA_TZ)
+    current = current.astimezone(INDIA_TZ)
+
+    grouped: dict[tuple[str, str], list[dict]] = {}
+    for record in records or []:
+        metric = str(record.get("metric") or "Observation").strip() or "Observation"
+        unit = str(record.get("unit") or "").strip()
+        try:
+            value = float(record.get("value"))
+            observed = datetime.fromisoformat(
+                str(record.get("observed_at") or "").replace("Z", "+00:00")
+            )
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if not isfinite(value):
+            continue
+        if observed.tzinfo is None:
+            observed = observed.replace(tzinfo=INDIA_TZ)
+        observed = observed.astimezone(INDIA_TZ)
+        grouped.setdefault((metric, unit), []).append({
+            "value": value,
+            "observed": observed,
+            "source": str(record.get("source") or "Not recorded"),
+        })
+
+    summaries = []
+    for (metric, unit), readings in sorted(grouped.items()):
+        readings.sort(key=lambda item: item["observed"])
+        values = [item["value"] for item in readings]
+        latest = readings[-1]
+        previous = readings[-2] if len(readings) >= 2 else None
+        change = latest["value"] - previous["value"] if previous else None
+
+        def direction(value: float | None) -> str:
+            if value is None:
+                return "Not enough data"
+            if value > 0:
+                return "Increasing"
+            if value < 0:
+                return "Decreasing"
+            return "Unchanged"
+
+        recent_average = previous_average = window_change = None
+        window_direction = "Not enough data"
+        required = window_size * 2
+        if len(values) >= required:
+            previous_window = values[-required:-window_size]
+            recent_window = values[-window_size:]
+            previous_average = sum(previous_window) / window_size
+            recent_average = sum(recent_window) / window_size
+            window_change = recent_average - previous_average
+            window_direction = direction(window_change)
+
+        age_seconds = (current - latest["observed"]).total_seconds()
+        if age_seconds < -300:
+            freshness = "Future-dated"
+        elif latest["observed"].date() == current.date():
+            freshness = "Updated today"
+        else:
+            age_days = max(0, (current.date() - latest["observed"].date()).days)
+            freshness = f"Updated {age_days} day{'s' if age_days != 1 else ''} ago"
+
+        summaries.append({
+            "metric": metric,
+            "unit": unit,
+            "count": len(readings),
+            "latest_value": latest["value"],
+            "latest_at": latest["observed"].isoformat(timespec="seconds"),
+            "previous_value": previous["value"] if previous else None,
+            "change_vs_previous": change,
+            "direction_vs_previous": direction(change),
+            "previous_average": previous_average,
+            "recent_average": recent_average,
+            "window_change": window_change,
+            "window_direction": window_direction,
+            "window_size": window_size,
+            "freshness": freshness,
+            "readings": [
+                {
+                    "value": item["value"],
+                    "observed_at": item["observed"].isoformat(timespec="seconds"),
+                    "source": item["source"],
+                }
+                for item in readings
+            ],
+        })
+    return summaries
+
+
 def record_dose(medication_id: str, now: datetime | None = None) -> dict:
     return {
         "id": make_id("dose"),
