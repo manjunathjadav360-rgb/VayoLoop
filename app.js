@@ -263,22 +263,26 @@
     const today = todayReports();
     const row = med => {
       const reportedToday = today.some(r => r.medicationId === med.id);
+      const action = canEditDemo()
+        ? (reportedToday ? '<span class="pill">Reported</span>' : '<button class="btn light small" data-dose="' + esc(med.id) + '">Mark reported</button>')
+        : '<span class="pill neutral">Read only</span>';
       return '<div class="item"><div><strong>' + esc(med.name) + ' <span class="pill neutral">' + esc(med.time) + '</span></strong>' +
         '<small>' + esc(med.strength || 'Sample label') + ' · ' + esc(med.instructions || 'No demo note') + '</small></div>' +
-        '<div class="item-actions">' + (reportedToday
-          ? '<span class="pill">Reported</span>'
-          : '<button class="btn light small" data-dose="' + esc(med.id) + '">Mark reported</button>') +
-        '</div></div>';
+        '<div class="item-actions">' + action + '</div></div>';
     };
     $('todayMeds').innerHTML = active.length ? active.map(row).join('') : empty('No active demo medication records.');
     $('medList').innerHTML = state.meds.length ? state.meds.map(med => {
       const todayReported = today.some(r => r.medicationId === med.id);
-      return '<div class="item"><div><strong>' + esc(med.name) + ' <span class="pill ' + (med.active?'':'neutral') + '">' + (med.active?'Active demo record':'Archived') + '</span></strong>' +
-        '<small>' + esc(med.strength || 'Sample label') + ' · ' + esc(med.time) + ' · ' + esc(med.instructions || 'No note') + '</small></div>' +
-        '<div class="item-actions">' + (med.active
+      let actions = '<span class="pill neutral">Read only</span>';
+      if (canEditDemo()) {
+        actions = med.active
           ? (todayReported ? '<span class="pill">Reported today</span>' : '<button class="btn light small" data-dose="' + esc(med.id) + '">Report dose</button>') +
             '<button class="btn ghost small" data-archive="' + esc(med.id) + '">Archive</button>'
-          : '<button class="btn ghost small" data-restore="' + esc(med.id) + '">Restore</button>') + '</div></div>';
+          : '<button class="btn ghost small" data-restore="' + esc(med.id) + '">Restore</button>';
+      }
+      return '<div class="item"><div><strong>' + esc(med.name) + ' <span class="pill ' + (med.active?'':'neutral') + '">' + (med.active?'Active demo record':'Archived') + '</span></strong>' +
+        '<small>' + esc(med.strength || 'Sample label') + ' · ' + esc(med.time) + ' · ' + esc(med.instructions || 'No note') + '</small></div>' +
+        '<div class="item-actions">' + actions + '</div></div>';
     }).join('') : empty('Add a fictional medicine record to explore this screen.');
     document.querySelectorAll('[data-dose]').forEach(button => button.addEventListener('click', () => reportDose(button.dataset.dose)));
     document.querySelectorAll('[data-archive]').forEach(button => button.addEventListener('click', () => setMedicationActive(button.dataset.archive,false)));
@@ -369,12 +373,13 @@
     const sorted = [...state.appointments].sort((a,b) => new Date(a.scheduledAt)-new Date(b.scheduledAt));
     $('apptList').innerHTML = sorted.map(item => {
       const past = new Date(item.scheduledAt) < now();
+      const completeButton = canEditDemo() && item.status === 'scheduled'
+        ? '<button class="btn ghost small" data-complete-appt="' + esc(item.id) + '">Complete</button>' : '';
       return '<div class="item"><div><strong>' + esc(item.title) + '</strong><small>' +
         esc(item.clinician || 'Clinician not specified') + ' · ' + dateLabel(item.scheduledAt) +
         (item.note ? ' · ' + esc(item.note) : '') + '</small></div><div class="item-actions"><span class="pill ' +
         (item.status==='completed'?'neutral':past?'amber':'') + '">' + esc(item.status) + '</span>' +
-        (item.status==='scheduled' ? '<button class="btn ghost small" data-complete-appt="' + esc(item.id) + '">Complete</button>' : '') +
-        '</div></div>';
+        completeButton + '</div></div>';
     }).join('') || empty('No demo appointments. Add one to see the workflow.');
     const upcoming = sorted.filter(item => item.status==='scheduled' && new Date(item.scheduledAt)>=now()).slice(0,3);
     $('nextAppts').innerHTML = upcoming.map(item =>
@@ -392,7 +397,7 @@
       esc(device.kind) + ' · ' + esc(device.provider) + ' · ' +
       (device.lastSync ? 'Last demo sync: '+dateLabel(device.lastSync) : 'Not synced in demo') +
       '<br>' + esc(device.reading || 'No demo reading') + '</small></div>' +
-      '<button class="btn ghost small" data-device-sync="' + esc(device.id) + '">Sync demo</button></div>'
+      (canEditDemo() ? '<button class="btn ghost small" data-device-sync="' + esc(device.id) + '">Sync demo</button>' : '<span class="pill neutral">Read only</span>') + '</div>'
     ).join('') || empty('No demo devices registered yet.');
     $('safetyLog').innerHTML = state.safetyEvents.length ? state.safetyEvents.map(event =>
       '<div class="item"><div><strong>' + esc(event.title) + '</strong><small>' + esc(event.detail) + ' · ' + dateLabel(event.at) + '</small></div><span class="pill amber">Simulated</span></div>'
@@ -422,11 +427,11 @@
       '</span><div class="member-info"><strong>' + esc(member.name) + '</strong><small>' + esc(member.scope) +
       '</small></div><span class="pill ' + (member.role==='Elder'?'':'neutral') + '">' + esc(member.role) + '</span></div>'
     ).join('') || empty('No sample care-circle members.');
-    $('inviteList').innerHTML = state.invites.length ? state.invites.map(invite =>
+    $('inviteList').innerHTML = canAdminDemo() ? (state.invites.length ? state.invites.map(invite =>
       '<div class="item"><div><strong>' + esc(invite.email) + '</strong><small>' + esc(invite.role) +
       ' · Expires ' + dateLabel(invite.expiresAt) + '</small></div><div class="item-actions"><span class="pill amber">Demo pending</span>' +
       '<button class="btn ghost small" data-copy-invite="' + esc(invite.id) + '">Copy code</button></div></div>'
-    ).join('') : empty('No demo invitations created yet.');
+    ).join('') : empty('No demo invitations created yet.')) : empty('Invitation management is reserved for the elder in this role preview.');
     document.querySelectorAll('[data-copy-invite]').forEach(button => button.addEventListener('click', () => {
       const invite = state.invites.find(item=>item.id===button.dataset.copyInvite);
       if (!invite) return;
@@ -457,8 +462,10 @@
   }
 
   function render() {
+    applyRoleView();
     renderStats();
     renderMeds();
+    renderMedicationJourney();
     renderHealth();
     renderAppointments();
     renderDevices();
