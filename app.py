@@ -763,6 +763,14 @@ elif section == "Health journal":
                     width="stretch",
                     height=320,
                 )
+                invalid_health_count = sum(
+                    1 for item in workspace["health"] if item.get("validation_issue")
+                )
+                if invalid_health_count:
+                    st.warning(
+                        f"{invalid_health_count} stored observation(s) need data-quality review. "
+                        "They remain visible but are excluded from numerical trend analysis."
+                    )
                 st.caption(
                     f"{len(workspace['health'])} observations in the shared demo workspace."
                     if cloud_active else
