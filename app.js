@@ -176,12 +176,18 @@ function render() {
 }
 
 function renderCareCircle() {
-  $('membersList').innerHTML = memberships.map(member => `
-    <div class="item">
-      <div><strong>${member.user_id === user.id ? 'You' : 'Care-circle member'}</strong>
-        <small>Member ID · ${esc(member.user_id.slice(0,8))}…</small>
-      </div><span class="pill">${esc(member.role)}</span>
-    </div>`).join('') || empty('No care-circle members found.');
+  $('membersList').innerHTML = memberships.map(member => {
+    const canRemove = member.role !== 'owner' &&
+      ((myRole === 'owner' || myRole === 'elder') || member.user_id === user.id);
+    const actionLabel = member.user_id === user.id ? 'Leave circle' : 'Remove access';
+    return `
+      <div class="item">
+        <div><strong>${member.user_id === user.id ? 'You' : 'Care-circle member'}</strong>
+          <small>Member ID · ${esc(member.user_id.slice(0,8))}…</small>
+        </div><div class="formrow"><span class="pill">${esc(member.role)}</span>
+        ${canRemove ? `<button class="btn ghost" data-remove-member="${esc(member.id)}">${actionLabel}</button>` : ''}</div>
+      </div>`;
+  }).join('') || empty('No care-circle members found.');
 
   const canInvite = myRole === 'owner' || myRole === 'elder';
   show('inviteForm', canInvite);
@@ -204,6 +210,9 @@ function renderCareCircle() {
 
   document.querySelectorAll('[data-revoke]').forEach(button => {
     button.addEventListener('click', () => revokeInvitation(button.dataset.revoke));
+  });
+  document.querySelectorAll('[data-remove-member]').forEach(button => {
+    button.addEventListener('click', () => removeCareMember(button.dataset.removeMember));
   });
 }
 
@@ -249,6 +258,19 @@ async function revokeInvitation(id) {
     if (error) throw error;
     if (!data) throw new Error('This invitation could not be revoked.');
     toast('Invitation revoked.');
+    await refresh();
+  } catch (error) {
+    toast(errorText(error));
+  }
+}
+
+async function removeCareMember(id) {
+  if (!window.confirm('Remove this person’s care-circle access?')) return;
+  try {
+    const { data, error } = await db.rpc('remove_care_member', { p_membership_id:id });
+    if (error) throw error;
+    if (!data) throw new Error('Access could not be removed.');
+    toast('Care-circle access updated.');
     await refresh();
   } catch (error) {
     toast(errorText(error));
