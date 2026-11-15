@@ -156,4 +156,4 @@ flowchart TD
 | `python -m compileall -q app.py vayoloop_core.py vayoloop_db.py vayoloop_security.py care_passport.py tests` | Python syntax compilation |
 | `python -m unittest discover -s tests -v` | Domain logic, import validation/deduplication, batch-write validation, upload cleanup, security helpers, Care Passport and Streamlit section rendering |
 
-Sample input: `examples/wearable_export_sample.csv`. The parser and persistence boundary are in `vayoloop_db.py`; the preview/confirmation UI is in the Health Journal section of `app.py`.
+Sample input: [`examples/vayoloop_wearable_demo.csv`](examples/vayoloop_wearable_demo.csv).
