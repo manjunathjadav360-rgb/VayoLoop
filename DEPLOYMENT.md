@@ -31,7 +31,7 @@ This is the older HTML/JavaScript preview, not the new Streamlit app.
 
 ## Current safety scope
 
-- Use fictional records for all hackathon testing. After Secrets are configured, authenticated health observations and prescription records persist in Supabase; other demo workflows remain session-scoped.
+- Use fictional records for all hackathon testing. Health observations and prescription records persist in the shared public demo workspace without a login; other demo workflows remain session-scoped.
 - Emergency detections, family notifications, contact acknowledgements and device events are simulations only.
 - No automated 112 call, dispatch, SMS, WhatsApp, email or push delivery is implemented.
 - Browser voice alerts depend on browser permissions and the page being open.
