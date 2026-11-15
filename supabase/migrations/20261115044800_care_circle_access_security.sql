@@ -221,3 +221,69 @@ grant select,insert,update on public.medications,public.dose_events,public.appoi
   public.care_events,public.notification_preferences,public.connected_devices,
   public.connected_device_events to authenticated;
 grant select,insert on public.device_readings to authenticated;
+
+
+-- Keep member removal safe even when the caller has no membership in the target care circle.
+create or replace function private.remove_care_member_impl(p_membership_id uuid)
+returns boolean language plpgsql security definer set search_path=''
+as $function$
+declare
+  v_user_id uuid:=auth.uid();
+  v_target public.care_memberships%rowtype;
+  v_actor_role text;
+begin
+  if v_user_id is null then raise exception 'Authentication required'; end if;
+  select cm.* into v_target from public.care_memberships cm where cm.id=p_membership_id for update;
+  if not found then return false; end if;
+  select cm.role into v_actor_role from public.care_memberships cm
+    where cm.elder_id=v_target.elder_id and cm.user_id=v_user_id;
+  if v_target.user_id=v_user_id then
+    if v_target.role='owner' then raise exception 'The profile owner cannot remove their own access'; end if;
+  elsif v_actor_role is null or v_actor_role not in ('owner','elder') then
+    raise exception 'Only the elder or profile owner can remove another member';
+  end if;
+  if v_target.role='owner' then raise exception 'The profile owner cannot be removed'; end if;
+  if v_target.role='elder' and v_target.user_id<>v_user_id then
+    raise exception 'Only the elder can remove their own elder access';
+  end if;
+  delete from public.care_memberships where id=p_membership_id;
+  return true;
+end;
+$function$;
+revoke all on function private.remove_care_member_impl(uuid) from public,anon,authenticated;
+grant execute on function private.remove_care_member_impl(uuid) to authenticated;
+
+-- Viewers can see the profile and membership summary, but not detailed health or care records.
+drop policy if exists "Care members read medications" on public.medications;
+create policy "Care members and family read medications" on public.medications
+  for select to authenticated using (private.is_care_member(elder_id,array['owner','elder','caregiver','family']));
+drop policy if exists "Care members read appointments" on public.appointments;
+create policy "Care members and family read appointments" on public.appointments
+  for select to authenticated using (private.is_care_member(elder_id,array['owner','elder','caregiver','family']));
+drop policy if exists "Care members read dose events" on public.dose_events;
+create policy "Care members and family read dose events" on public.dose_events
+  for select to authenticated using (private.is_care_member(elder_id,array['owner','elder','caregiver','family']));
+drop policy if exists "Care members read health observations" on public.health_observations;
+create policy "Care members and family read health observations" on public.health_observations
+  for select to authenticated using (private.is_care_member(elder_id,array['owner','elder','caregiver','family']));
+drop policy if exists "Care members read prescriptions" on public.prescription_records;
+create policy "Care members and family read prescriptions" on public.prescription_records
+  for select to authenticated using (private.is_care_member(elder_id,array['owner','elder','caregiver','family']));
+drop policy if exists "Care members read prescription flags" on public.prescription_flags;
+create policy "Care members and family read prescription flags" on public.prescription_flags
+  for select to authenticated using (private.is_care_member(elder_id,array['owner','elder','caregiver','family']));
+drop policy if exists "Care members read care events" on public.care_events;
+create policy "Care members and family read care events" on public.care_events
+  for select to authenticated using (private.is_care_member(elder_id,array['owner','elder','caregiver','family']));
+drop policy if exists "Care members read notification preferences" on public.notification_preferences;
+create policy "Care members and family read notification preferences" on public.notification_preferences
+  for select to authenticated using (private.is_care_member(elder_id,array['owner','elder','caregiver','family']));
+drop policy if exists "care members read connected devices" on public.connected_devices;
+create policy "Care circle read connected devices" on public.connected_devices
+  for select to authenticated using (private.is_care_member(elder_id,array['owner','elder','caregiver','family']));
+drop policy if exists "care members read device readings" on public.device_readings;
+create policy "Care circle read device readings" on public.device_readings
+  for select to authenticated using (private.is_care_member(elder_id,array['owner','elder','caregiver','family']));
+drop policy if exists "care members read device events" on public.connected_device_events;
+create policy "Care circle read device events" on public.connected_device_events
+  for select to authenticated using (private.is_care_member(elder_id,array['owner','elder','caregiver','family']));
