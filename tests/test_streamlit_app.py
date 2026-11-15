@@ -23,6 +23,7 @@ class StreamlitPageSmokeTests(unittest.TestCase):
     def test_source_uses_current_streamlit_embedding_and_width_apis(self):
         source = APP_PATH.read_text(encoding="utf-8")
         self.assertIn("st.iframe(", source)
+        self.assertIn('initial_sidebar_state="auto"', source)
         self.assertNotIn("components.v1.html", source)
         self.assertNotIn("use_container_width", source)
 
