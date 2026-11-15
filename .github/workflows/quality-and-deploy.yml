@@ -32,7 +32,7 @@ jobs:
         run: pip install -r requirements.txt
       - name: Check Streamlit application and care workflows
         run: |
-          VAYOLOOP_DISABLE_PERSISTENCE=1 python -m compileall -q app.py vayoloop_core.py vayoloop_db.py tests
+          VAYOLOOP_DISABLE_PERSISTENCE=1 python -m compileall -q app.py vayoloop_core.py vayoloop_db.py vayoloop_security.py care_passport.py tests
           VAYOLOOP_DISABLE_PERSISTENCE=1 python -m unittest discover -s tests -v
 
   deploy:

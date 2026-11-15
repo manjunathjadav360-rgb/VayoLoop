@@ -14,10 +14,12 @@ class SecurityEncodingTests(unittest.TestCase):
         self.assertIn("&amp;", encoded)
 
     def test_script_json_cannot_close_its_script_element(self):
-        value = {"note": "</script><script>alert(1)</script>", "separator": "\\u2028"}
+        value = {"note": "</script><script>alert(1)</script>", "separators": chr(0x2028) + chr(0x2029)}
         encoded = json_for_script(value)
         self.assertNotIn("</script>", encoded.lower())
         self.assertNotIn("<", encoded)
+        self.assertNotIn(chr(0x2028), encoded)
+        self.assertNotIn(chr(0x2029), encoded)
         self.assertEqual(json.loads(encoded), value)
 
 
