@@ -17,7 +17,21 @@ assert.deepEqual(missingIds, [], 'Every JavaScript element ID must exist in inde
 const tabs = [...html.matchAll(/data-tab="([^"]+)"/g)].map(match => match[1]);
 for (const tab of tabs) {
   assert.ok(html.includes('id="view-' + tab + '"'), 'Missing view for tab: ' + tab);
+  assert.ok(html.includes('aria-controls="view-' + tab + '"'), 'Tab must identify its panel: ' + tab);
+  assert.ok(html.includes('aria-labelledby="tab-' + tab + '"'), 'Panel must be labelled by its tab: ' + tab);
 }
+assert.match(html, /role="tablist"/, 'Main navigation must expose tablist semantics');
+assert.match(html, /class="skip-link" href="#mainContent"/, 'Keyboard users must have a skip link');
+assert.match(html, /\.sr-only\{/, 'Accessible-only labels must be visually hidden, not omitted');
+assert.match(app, /event\.key === 'ArrowRight'/, 'Tabs must support right-arrow navigation');
+assert.match(app, /event\.key === 'Home'/, 'Tabs must support Home-key navigation');
+assert.match(app, /view\.hidden = !active/, 'Inactive panels must be removed from keyboard focus');
+const controls = [...html.matchAll(/<(?:input|select)\b[^>]*\bid="([^"]+)"[^>]*>/g)].map(match => match[1]);
+for (const id of controls) {
+  assert.ok(html.includes('for="' + id + '"') || /aria-label=/.test(html), 'Form control must have an accessible label: ' + id);
+}
+assert.match(html, /id="healthValue"[^>]*min="0"/, 'Health sample values must reject negatives');
+assert.match(html, /prefers-reduced-motion:reduce/, 'Reduced-motion preferences must be respected');
 
 assert.match(html, /DEMO MODE/, 'The public app must clearly identify itself as a demo');
 assert.match(html, /Asha Rao/, 'The demo user must be visible');

@@ -499,16 +499,39 @@
   });
 
   function switchView(name) {
+    const selected = document.querySelector('[data-tab="' + name + '"]:not(.hidden)');
+    if (!selected) return;
     document.querySelectorAll('[data-tab]').forEach(button => {
-      button.classList.toggle('active', button.dataset.tab === name);
+      const active = button === selected;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
     });
     document.querySelectorAll('.view').forEach(view => {
-      view.classList.toggle('active', view.id === 'view-' + name);
+      const active = view.id === 'view-' + name;
+      view.classList.toggle('active', active);
+      view.hidden = !active;
+      view.setAttribute('aria-hidden', String(!active));
     });
   }
 
   document.querySelectorAll('[data-tab]').forEach(button => {
     button.addEventListener('click', () => switchView(button.dataset.tab));
+    button.addEventListener('keydown', event => {
+      const visibleTabs = [...document.querySelectorAll('[data-tab]:not(.hidden)')];
+      const currentIndex = visibleTabs.indexOf(button);
+      if (currentIndex < 0) return;
+      let nextIndex = null;
+      if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % visibleTabs.length;
+      else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + visibleTabs.length) % visibleTabs.length;
+      else if (event.key === 'Home') nextIndex = 0;
+      else if (event.key === 'End') nextIndex = visibleTabs.length - 1;
+      if (nextIndex === null) return;
+      event.preventDefault();
+      const next = visibleTabs[nextIndex];
+      switchView(next.dataset.tab);
+      next.focus();
+    });
   });
   document.querySelectorAll('[data-go]').forEach(button => {
     button.addEventListener('click', () => switchView(button.dataset.go));
@@ -885,7 +908,7 @@
     event.preventDefault();
     const name = $('medName').value.trim();
     const time = $('medTime').value;
-    if (!name || !time) return toast('Enter a medicine label and sample time.');
+    if (!name || !time || name.length > 100) return toast('Enter a medicine label (maximum 100 characters) and sample time.');
     state.meds.push({
       id:makeId('med'),name,strength:$('medStrength').value.trim()||'Sample label',
       time,instructions:$('medInstructions').value.trim()||'Demo entry only',
@@ -901,7 +924,7 @@
     const metric = $('metric').value;
     const value = Number($('healthValue').value);
     const unit = $('healthUnit').value.trim();
-    if (!Number.isFinite(value) || !unit) return toast('Enter a sample value and unit.');
+    if (!Number.isFinite(value) || value < 0 || !unit || unit.length > 32) return toast('Enter a non-negative sample value and a unit of 32 characters or fewer.');
     const at = iso(now());
     state.health.push({id:makeId('h'),metric,value,unit,observedAt:at,source:'Manual demo entry'});
     addEvent('Health journal sample added',metricName(metric)+' · '+value+' '+unit,'health');
@@ -916,7 +939,7 @@
     const title = $('apptTitle').value.trim();
     const clinician = $('clinician').value.trim();
     const when = $('apptDate').value;
-    if (!title || !when || new Date(when) < now()) return toast('Choose an appointment time in the future.');
+    if (!title || title.length > 120 || clinician.length > 120 || !when || new Date(when) < now()) return toast('Enter a valid appointment and choose a future time.');
     state.appointments.push({id:makeId('apt'),title,clinician,scheduledAt:iso(new Date(when)),status:'scheduled',note:'Created in demo workspace'});
     addEvent('Demo appointment added',title,'care');
     event.target.reset(); save(); render(); toast('Sample appointment added.');

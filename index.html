@@ -40,7 +40,7 @@ body.large-text{font-size:17px}body.large-text .item strong,body.large-text .car
 @media(max-width:440px){.journey-grid{grid-template-columns:1fr 1fr}.stat{font-size:21px}.card{padding:14px}.top{flex-direction:column}.top-actions{width:100%;justify-content:space-between}.tabs{gap:5px}.tabs button{padding:8px 9px}.fieldrow{grid-template-columns:1fr}}
 
 /* VayoLoop visual refresh — calm, editorial and accessible */
-:root{--ink:#20342e;--muted:#718078;--line:#e8e5dc;--paper:#f5f2e9;--white:#fffefa;--green:#245b49;--green2:#326e58;--mint:#e9efe6;--pale:#f8f7f1;--amber:#916a32;--amber-bg:#f8f0df;--red:#a74d45;--blue:#496d83;--shadow:0 8px 24px rgba(38,51,39,.045)}
+:root{--ink:#20342e;--muted:#5f6d64;--line:#e8e5dc;--paper:#f5f2e9;--white:#fffefa;--green:#245b49;--green2:#326e58;--mint:#e9efe6;--pale:#f8f7f1;--amber:#916a32;--amber-bg:#f8f0df;--red:#a74d45;--blue:#496d83;--shadow:0 8px 24px rgba(38,51,39,.045)}
 body{background:var(--paper);color:var(--ink);font-size:15px}
 .shell{max-width:1320px;padding:24px 30px 38px}
 .demo-strip{background:#f2ecdc;border-color:#e7ddc7;color:#79653e;border-radius:7px;padding:10px 14px;font-size:11px}
@@ -102,10 +102,16 @@ body{background:var(--paper);color:var(--ink);font-size:15px}
 @media(max-width:820px){.shell{padding:14px 13px 28px}.hero{padding:24px 21px;min-height:0}.hero-right{align-items:flex-start}.hero:after{right:-190px}.statgrid{gap:8px}.card{padding:15px}}
 @media(max-width:440px){.hero{border-radius:9px;padding:22px 18px}.hero h1{font-size:30px}.statcard{padding:12px}.stat{font-size:23px}.tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:8px}.tabs button{white-space:nowrap;flex:none}.top-actions{gap:5px}.user-chip{padding-left:0}.role-switch{padding:5px 7px}}
 
+ .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+ .skip-link{position:absolute;z-index:50;top:8px;left:8px;padding:10px 14px;border-radius:7px;background:#20342e;color:#fff;transform:translateY(-160%);font-weight:700}
+ .skip-link:focus{transform:translateY(0)}
+ [hidden]{display:none!important}
+ @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
-<main class="shell">
+<a class="skip-link" href="#mainContent">Skip to main content</a>
+<main class="shell" id="mainContent">
   <div class="demo-strip"><span class="demo-dot"></span><strong>DEMO MODE</strong><span>All profiles and readings are fictional. Changes are saved only in this browser. No login or live medical/device connection is used.</span></div>
   <header class="top">
     <div class="brand"><span class="mark">V</span><div>VayoLoop<div class="brand-tag">CARE BEYOND REMINDERS</div></div></div>
@@ -128,16 +134,16 @@ body{background:var(--paper);color:var(--ink);font-size:15px}
     <div class="statcard"><div class="statlabel">Care-circle members</div><div class="stat" id="memberCount">3</div><div class="statnote">Example role permissions</div></div>
   </section>
 
-  <nav class="tabs" aria-label="Main sections">
-    <button class="active" data-tab="overview">Overview</button>
-    <button data-tab="medications">Medications</button>
-    <button data-tab="health">Health progress</button>
-    <button data-tab="appointments">Appointments</button>
-    <button data-tab="devices">Connected living</button>
-    <button data-tab="care">Care circle</button>
+  <nav class="tabs" role="tablist" aria-label="Main sections" aria-orientation="horizontal">
+    <button id="tab-overview" class="active" type="button" role="tab" aria-selected="true" aria-controls="view-overview" tabindex="0" data-tab="overview">Overview</button>
+    <button id="tab-medications" type="button" role="tab" aria-selected="false" aria-controls="view-medications" tabindex="-1" data-tab="medications">Medications</button>
+    <button id="tab-health" type="button" role="tab" aria-selected="false" aria-controls="view-health" tabindex="-1" data-tab="health">Health progress</button>
+    <button id="tab-appointments" type="button" role="tab" aria-selected="false" aria-controls="view-appointments" tabindex="-1" data-tab="appointments">Appointments</button>
+    <button id="tab-devices" type="button" role="tab" aria-selected="false" aria-controls="view-devices" tabindex="-1" data-tab="devices">Connected living</button>
+    <button id="tab-care" type="button" role="tab" aria-selected="false" aria-controls="view-care" tabindex="-1" data-tab="care">Care circle</button>
   </nav>
 
-  <section id="view-overview" class="view active">
+  <section id="view-overview" class="view active" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
     <div class="grid">
       <article class="card full voice-card">
         <div class="cardhead"><h2>VayoLoop voice companion</h2><span id="voiceBadge" class="pill neutral voice-badge">Voice off</span></div>
@@ -183,65 +189,83 @@ body{background:var(--paper);color:var(--ink);font-size:15px}
     </div>
   </section>
 
-  <section id="view-medications" class="view">
+  <section id="view-medications" class="view" role="tabpanel" aria-labelledby="tab-medications" tabindex="0" hidden>
     <div class="grid">
       <article class="card wide"><div class="cardhead"><h2>Medication records</h2><span class="pill">Demo records</span></div><div id="medList" class="list"></div></article>
       <article class="card side"><h2>Add a sample record</h2><form id="medForm" class="form section">
-        <input id="medName" class="field" placeholder="Medicine label (e.g. Medicine D)" required>
-        <div class="fieldrow"><input id="medStrength" class="field" placeholder="Strength / dose label"><input id="medTime" class="field" type="time" value="09:00" required></div>
-        <input id="medInstructions" class="field" placeholder="Demo note (not medical advice)">
+        <label class="sr-only" for="medName">Medicine label</label>
+        <input id="medName" class="field" maxlength="100" autocomplete="off" placeholder="Medicine label (e.g. Medicine D)" required>
+        <div class="fieldrow"><label class="sr-only" for="medStrength">Medicine strength or label</label>
+        <input id="medStrength" class="field" maxlength="100" placeholder="Strength / dose label"><label class="sr-only" for="medTime">Medicine reminder time</label>
+        <input id="medTime" class="field" type="time" value="09:00" required></div>
+        <label class="sr-only" for="medInstructions">Medicine routine note</label>
+        <input id="medInstructions" class="field" maxlength="240" placeholder="Demo note (not medical advice)">
         <button class="btn">Add demo medicine</button>
       </form><p class="muted section" style="font-size:9px">Do not use this demo to manage real medication. Always follow verified clinician instructions.</p></article>
     </div>
   </section>
 
-  <section id="view-health" class="view">
+  <section id="view-health" class="view" role="tabpanel" aria-labelledby="tab-health" tabindex="0" hidden>
     <div class="grid">
       <article class="card wide"><div class="cardhead"><h2>Health journal</h2><span class="pill">Fictional observations</span></div><div id="healthList" class="list"></div></article>
       <article class="card side"><h2>Add a sample observation</h2><form id="healthForm" class="form section">
+        <label class="sr-only" for="metric">Health observation type</label>
         <select id="metric" class="field"><option value="steps">Daily steps</option><option value="sleep_hours">Sleep duration</option><option value="resting_heart_rate">Resting heart rate</option><option value="blood_pressure_systolic">Blood pressure — systolic</option><option value="blood_glucose">Blood glucose</option></select>
-        <div class="fieldrow"><input id="healthValue" class="field" type="number" step="any" placeholder="Value" required><input id="healthUnit" class="field" placeholder="Unit" required></div>
+        <div class="fieldrow"><label class="sr-only" for="healthValue">Health observation value</label>
+        <input id="healthValue" class="field" type="number" min="0" step="any" inputmode="decimal" placeholder="Value" aria-describedby="healthValueHelp" required>
+        <span id="healthValueHelp" class="sr-only">Enter a non-negative sample value. This demo does not assess whether the value is medically safe.</span><label class="sr-only" for="healthUnit">Health observation unit</label>
+        <input id="healthUnit" class="field" maxlength="32" placeholder="Unit" required></div>
         <button class="btn">Save demo reading</button>
       </form><div class="notice section">VayoLoop shows changes over time; it does not diagnose or judge whether a reading is safe.</div></article>
       <article class="card full"><div class="cardhead"><h2>Progress direction</h2><span class="pill neutral">Not a health score</span></div><div id="trendDetail"></div></article>
     </div>
   </section>
 
-  <section id="view-appointments" class="view">
+  <section id="view-appointments" class="view" role="tabpanel" aria-labelledby="tab-appointments" tabindex="0" hidden>
     <div class="grid">
       <article class="card wide"><div class="cardhead"><h2>Appointments</h2><span class="pill">Sample calendar</span></div><div id="apptList" class="list"></div></article>
       <article class="card side"><h2>Add an appointment</h2><form id="apptForm" class="form section">
-        <input id="apptTitle" class="field" placeholder="Appointment title" required>
-        <input id="clinician" class="field" placeholder="Clinician / clinic (optional)">
+        <label class="sr-only" for="apptTitle">Appointment title</label>
+        <input id="apptTitle" class="field" maxlength="120" placeholder="Appointment title" required>
+        <label class="sr-only" for="clinician">Clinician or clinic name</label>
+        <input id="clinician" class="field" maxlength="120" placeholder="Clinician / clinic (optional)">
+        <label class="sr-only" for="apptDate">Appointment date and time</label>
         <input id="apptDate" class="field" type="datetime-local" required>
         <button class="btn">Add demo appointment</button>
       </form></article>
     </div>
   </section>
 
-  <section id="view-devices" class="view">
+  <section id="view-devices" class="view" role="tabpanel" aria-labelledby="tab-devices" tabindex="0" hidden>
     <div class="grid">
       <article class="card wide"><div class="cardhead"><h2>Connected living devices</h2><span class="pill blue">Simulated</span></div><div id="deviceList" class="list"></div>
         <div class="notice section">This demo simulates device status and sample readings only. It does not connect to a real smartwatch, appliance, location service or emergency system.</div>
         <div class="formrow section"><button id="simulateSync" class="btn light" type="button">Simulate device sync</button><button id="simulateAlert" class="btn warn" type="button">Run safety alert demo</button></div>
       </article>
       <article class="card side"><h2>Register a sample device</h2><form id="deviceForm" class="form section">
-        <input id="deviceName" class="field" placeholder="Device name" required>
+        <label class="sr-only" for="deviceName">Device name</label>
+        <input id="deviceName" class="field" maxlength="100" placeholder="Device name" required>
+        <label class="sr-only" for="deviceKind">Device type</label>
         <select id="deviceKind" class="field"><option value="Smart watch">Smart watch</option><option value="Phone health platform">Phone health platform</option><option value="Smart light">Smart light</option><option value="Door sensor">Door sensor</option><option value="Motion sensor">Motion sensor</option><option value="Smart speaker">Smart speaker</option></select>
-        <input id="provider" class="field" placeholder="Brand / provider label" required>
-        <label class="muted" style="font-size:10px"><input id="deviceConsent" type="checkbox" required> I have permission to include this device in the demo profile.</label>
+        <label class="sr-only" for="provider">Device brand or provider</label>
+        <input id="provider" class="field" maxlength="100" placeholder="Brand / provider label" required>
+        <label class="muted" style="font-size:10px"><label class="sr-only" for="deviceConsent">Permission to include this sample device</label>
+        <input id="deviceConsent" type="checkbox" required> I have permission to include this device in the demo profile.</label>
         <button class="btn">Add demo device</button>
       </form></article>
       <article class="card full"><div class="cardhead"><h2>Simulated safety event log</h2><span class="pill amber">Not monitored</span></div><div id="safetyLog" class="list"></div></article>
     </div>
   </section>
 
-  <section id="view-care" class="view">
+  <section id="view-care" class="view" role="tabpanel" aria-labelledby="tab-care" tabindex="0" hidden>
     <div class="grid">
       <article class="card wide"><div class="cardhead"><h2>Asha's care circle</h2><span class="pill">Example permissions</span></div><div id="membersList" class="list"></div><div class="divider"></div><div class="cardhead"><h3>Demo invitations</h3><span class="muted" style="font-size:9px">Local simulation only</span></div><div id="inviteList" class="list"></div><div id="inviteResult" class="notice green section hidden"></div></article>
       <article class="card side"><h2>Invite a trusted person</h2><form id="inviteForm" class="form section">
-        <input id="inviteEmail" class="field" type="email" placeholder="Example email address" required>
+        <label class="sr-only" for="inviteEmail">Example invite email address</label>
+        <input id="inviteEmail" class="field" type="email" maxlength="254" autocomplete="off" placeholder="Example email address" required>
+        <label class="sr-only" for="inviteRole">Example invitation role</label>
         <select id="inviteRole" class="field"><option value="caregiver">Caregiver — assist with care</option><option value="family">Family — read-only access</option><option value="viewer">Viewer — limited summary</option></select>
+        <label class="sr-only" for="inviteExpiry">Example invitation expiry</label>
         <select id="inviteExpiry" class="field"><option value="24">Expires in 24 hours</option><option value="72" selected>Expires in 3 days</option><option value="168">Expires in 7 days</option></select>
         <button class="btn">Generate demo invite</button>
       </form><div class="notice section">Demo invite codes are not real access credentials and cannot be used to sign into an account.</div></article>
