@@ -41,7 +41,7 @@
     health.push({id:makeId('h'),metric:'resting_heart_rate',value:74,unit:'bpm',observedAt:iso(dateOffset(0,8,30)),source:'Demo watch'});
 
     const meds = [
-      {id:'med-a',name:'Medicine A',strength:'Sample dose A',time:'08:00',instructions:'Example note: after breakfast',active:true,lastReportedAt:iso(dateOffset(0,8,5))},
+      {id:'med-a',name:'Medicine A',strength:'Sample dose A',time:'08:00',instructions:'Example note: after breakfast',active:true,lastReportedAt:null},
       {id:'med-b',name:'Medicine B',strength:'Sample dose B',time:'13:00',instructions:'Example note: lunchtime routine',active:true,lastReportedAt:null},
       {id:'med-c',name:'Medicine C',strength:'Sample dose C',time:'20:00',instructions:'Example note: evening routine',active:true,lastReportedAt:null}
     ];
@@ -125,7 +125,7 @@
     const weekStart = startOfDay(now());
     weekStart.setDate(weekStart.getDate() - 6);
     const reports = state.doseReports.filter(report => new Date(report.at) >= weekStart);
-    const scheduled = Math.max(7, state.meds.filter(m => m.active).length * 7);
+    const scheduled = 7;
     const rate = Math.min(100, Math.round((reports.length / scheduled) * 100));
     $('doseRate').textContent = rate + '%';
     $('medCount').textContent = state.meds.filter(m => m.active).length;
@@ -453,6 +453,6 @@
 
   const greetHour=now().getHours();
   $('greeting').textContent=(greetHour<12?'Good morning':greetHour<17?'Good afternoon':'Good evening')+', Asha';
-  if (!localStorage.getItem(STORAGE_KEY) && !memoryOnly) save();
+  if (!memoryOnly) { try { if (!localStorage.getItem(STORAGE_KEY)) save(); } catch { memoryOnly = true; } }
   render();
 })();
