@@ -253,6 +253,10 @@ def status_badge(status: str) -> str:
     return "•"
 
 
+def navigate_to_section(section_name: str) -> None:
+    st.session_state.workspace_section = section_name
+
+
 if "workspace" not in st.session_state:
     st.session_state.workspace = seed_demo_state()
 if "role" not in st.session_state:
@@ -320,22 +324,12 @@ if section == "Home":
     with st.expander("Guided demo · follow one family care journey", expanded=False):
         st.caption("A short walkthrough for judges: record a routine, notice a change, coordinate support, test the safety flow, then prepare a care handoff.")
         g1, g2, g3 = st.columns(3)
-        if g1.button("1 · Medicine routine", use_container_width=True):
-            st.session_state.workspace_section = "Medicines"
-            st.rerun()
-        if g2.button("2 · Health journal", use_container_width=True):
-            st.session_state.workspace_section = "Health journal"
-            st.rerun()
-        if g3.button("3 · Family coordination", use_container_width=True):
-            st.session_state.workspace_section = "Family circle"
-            st.rerun()
+        g1.button("1 · Medicine routine", use_container_width=True, on_click=navigate_to_section, args=("Medicines",))
+        g2.button("2 · Health journal", use_container_width=True, on_click=navigate_to_section, args=("Health journal",))
+        g3.button("3 · Family coordination", use_container_width=True, on_click=navigate_to_section, args=("Family circle",))
         g4, g5 = st.columns(2)
-        if g4.button("4 · Safety response", use_container_width=True):
-            st.session_state.workspace_section = "Emergency centre"
-            st.rerun()
-        if g5.button("5 · Build Care Passport", use_container_width=True):
-            st.session_state.workspace_section = "Care Passport"
-            st.rerun()
+        g4.button("4 · Safety response", use_container_width=True, on_click=navigate_to_section, args=("Emergency centre",))
+        g5.button("5 · Build Care Passport", use_container_width=True, on_click=navigate_to_section, args=("Care Passport",))
     st.subheader("Your care, at a glance")
     components.html(voice_companion_html(workspace["meds"], workspace["appointments"], VOICE_LANGUAGES[language_label]), height=75, scrolling=False)
     left, right = st.columns([1.25, 0.75], gap="large")
