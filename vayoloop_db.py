@@ -196,6 +196,11 @@ def parse_health_observations_csv(
             except (TypeError, ValueError, OverflowError):
                 continue
 
+        def field(row: dict[str | None, str | None], name: str, default: str = "") -> str:
+            original_header = headers.get(name)
+            value = row.get(original_header) if original_header else None
+            return str(value if value is not None else default).strip()
+
         observations: list[dict[str, Any]] = []
         duplicates = 0
         row_count = 0
@@ -206,18 +211,13 @@ def parse_health_observations_csv(
             if row_count > MAX_HEALTH_IMPORT_ROWS:
                 raise ValueError(f"The CSV may contain no more than {MAX_HEALTH_IMPORT_ROWS} data rows.")
 
-            def field(name: str, default: str = "") -> str:
-                original_header = headers.get(name)
-                value = raw.get(original_header) if original_header else None
-                return str(value if value is not None else default).strip()
-
             try:
                 observation = normalise_health_observation(
-                    field("metric"),
-                    field("value"),
-                    field("unit"),
-                    field("observed_at"),
-                    field("source", "Imported wearable CSV") or "Imported wearable CSV",
+                    field(raw, "metric"),
+                    field(raw, "value"),
+                    field(raw, "unit"),
+                    field(raw, "observed_at"),
+                    field(raw, "source", "Imported wearable CSV") or "Imported wearable CSV",
                 )
                 fingerprint = _health_observation_fingerprint(observation)
             except (TypeError, ValueError, OverflowError) as exc:
