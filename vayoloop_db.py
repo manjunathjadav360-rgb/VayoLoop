@@ -158,6 +158,18 @@ def _health_observation_fingerprint(record: dict[str, Any]) -> tuple[str, float,
     )
 
 
+def _wearable_csv_field(
+    row: dict[str | None, str | None],
+    headers: dict[str, str | None],
+    name: str,
+    default: str = "",
+) -> str:
+    """Read a normalised CSV column without closing over a row-loop variable."""
+    original_header = headers.get(name)
+    value = row.get(original_header) if original_header else None
+    return str(value if value is not None else default).strip()
+
+
 def parse_health_observations_csv(
     payload: bytes,
     existing_records: list[dict[str, Any]] | None = None,
@@ -196,11 +208,6 @@ def parse_health_observations_csv(
             except (TypeError, ValueError, OverflowError):
                 continue
 
-        def field(row: dict[str | None, str | None], name: str, default: str = "") -> str:
-            original_header = headers.get(name)
-            value = row.get(original_header) if original_header else None
-            return str(value if value is not None else default).strip()
-
         observations: list[dict[str, Any]] = []
         duplicates = 0
         row_count = 0
@@ -213,11 +220,11 @@ def parse_health_observations_csv(
 
             try:
                 observation = normalise_health_observation(
-                    field(raw, "metric"),
-                    field(raw, "value"),
-                    field(raw, "unit"),
-                    field(raw, "observed_at"),
-                    field(raw, "source", "Imported wearable CSV") or "Imported wearable CSV",
+                    _wearable_csv_field(raw, headers, "metric"),
+                    _wearable_csv_field(raw, headers, "value"),
+                    _wearable_csv_field(raw, headers, "unit"),
+                    _wearable_csv_field(raw, headers, "observed_at"),
+                    _wearable_csv_field(raw, headers, "source", "Imported wearable CSV") or "Imported wearable CSV",
                 )
                 fingerprint = _health_observation_fingerprint(observation)
             except (TypeError, ValueError, OverflowError) as exc:
